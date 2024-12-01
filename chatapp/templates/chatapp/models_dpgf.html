@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Bordereaux de prix{% endblock title %}
+
+
+
+{% block content %}
+<h1>{{welcome}}</h1>
+<div class="container">
+    <div class="row mt-5">
+        <div class="col col-3">
+            <img src="{% static 'images/naldea-user-working.png'%}" class="img-fluid " style="width:200px"   />
+        </div>
+        <div class="col">
+            Recherche de prix unitaires, bordereaux de prix, chiffrage travaux
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-10">
+            <a href="#" class="btn btn-outline-primary" id="btn-upload-model">Charger de nouvelles données</a>
+            <a href="#" class="btn btn-outline-primary" id="btn-train-model">Réentrainer le modèle</a>
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-10">
+            <div class="input-group mb-3">
+                <input id="prompt" type="text" class="form-control" placeholder="Prompt ..." >
+                <button id="prompt-send" class="btn btn-outline-secondary" type="button">Send</button>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-10">
+            <div class="input-group mb-3" id="conversation">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Train model response -->
+  <div class="modal fade" id="modal_model_train" tabindex="-1" aria-labelledby="fullscreenModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <img src="{% static 'images/logo.png' %}" alt="Description de l'image" style="height:30px"> Engineeria (dev)
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col col-2">
+                        accuracy : 
+                        <span id="model-accuracy" class="btn btn-dark"></span>
+                        <br/>
+                        state : <span id="model-state" class="btn btn-dark"></span>
+                    </div>
+                    <div class="col col-10">
+                        <img src="{% static 'images/naldea-user-working.png'%}" class="img-fluid " id="graph"  />
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<!-- Modal modal_upload_files -->
+<div class="modal fade" id="modal_upload_files" tabindex="-1" aria-labelledby="UploadModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <form id="upload-form" method="post" enctype="multipart/form-data" class="mb-3">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="UploadModalLabel"><span id="span_upload_dir"></span><h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Formulaire -->
+                  {% csrf_token %}
+                  <div class="mb-3">
+                      <label for="file-input" class="form-label">Sélectionner les fichiers à télécharger </label>
+                      <input type="file" class="form-control" name="files" id="file-input" accept=".xlsx" multiple>
+                  </div>
+            </div>
+            <div class="modal-footer">
+              <button type="submit" class="btn btn-primary">Envoyer</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            </div>
+        </div>
+      </form>
+    </div>
+    
+  </div>
+
+<!-- Script interface -->
+<script>
+
+    $(document).ready(function () {
+        
+        
+        $('#btn-upload-model').click(function (e) {
+            $("#modal_upload_files").modal('show');
+        });
+        $('#upload-form').submit(function (e) {
+            e.preventDefault();
+            upload_dataset()
+        });
+
+        function upload_dataset(e) {
+            var form = $("#upload-form")
+            var formData = new FormData(form[0]);
+            var model_courant={model:"modelName"} // non utilisé
+            formData.append("model",model_courant.analyse)
+            $.ajax({
+                url: '{% url 'chatapp:models_dpgf_demo_upload' %}', 
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function (response) {
+                    console.log("upload_dataset", response)
+                    form[0].reset()
+                    $("#modal_upload_files").modal('hide');
+                },
+                error: function (error) {
+                  console.log(error);
+                }
+            });
+        };
+        
+        $("#btn-train-model").click(function () {
+            models_train("prix_prediction")
+        });
+        
+        function models_train(modelName) {
+            var model_courant={model:modelName}
+            const qa = newQA();
+            $.ajax({
+                url: '{% url 'chatapp:models_dpgf_demo_train' %}',
+                type: 'POST',
+                data:JSON.stringify(model_courant),
+                beforeSend: function(xhr, settings){
+                    xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+                },
+                success: function(response) {
+                    console.log("models_train",response)
+                    // qa.append(newPrompt(response.accuracy, response.state))
+                    base64Data = response.content;
+                    $("#model-name").html(response.model)
+                    $("#model-accuracy").html(response.accuracy)
+                    $("#model-state").html(response.state).removeClass("btn-dark btn-success btn-danger").addClass("btn-"+response.state)
+                    img = $("#graph").attr("src", 'data:image/png;base64,' + base64Data);
+                    $("#modal_model_train").modal('show');
+                },
+                error: function() {
+                }
+            });
+        }
+
+        function models_ask(){
+            question = $('#prompt').val()
+            if(question==""){return false}
+            var model_courant={prompt:question}
+            const qa = newQA();
+            $.ajax({
+                url: '{% url 'chatapp:models_dpgf_demo_ask' %}',
+                type: 'POST',
+                data: JSON.stringify(model_courant), 
+                contentType: 'application/json', 
+                beforeSend: function(xhr, settings){
+                    xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+                    qa.prepend(newPrompt(question, "info"))
+                    $('#prompt').val("")
+                },
+                success: function(response) {
+                    qa.append(newPrompt(response.content, response.state))
+                    console.log(response);
+                },
+                error: function(e) {
+                    qa.prepend(newPrompt('Une erreur s\'est produite.', response.state))
+                    $('#prompt').val(question)
+                    console.log(e);
+                }
+            });
+            
+        }
+        
+        function newQA(){
+            qa = $("<div class='container'></div>")
+            $("#conversation").prepend(qa)
+            return qa
+        }
+        function newPrompt(p, className="success"){
+            if (className!="info"){Col=""}else{Col="<div class='col-1'></div>"}
+            return $("<div class='row'>"+Col+"<div class='col-11 alert alert-"+className+"'>"+p+"</div></div>")
+        }
+        $('#prompt-send').click(function(event) {
+            models_ask()
+        });
+        
+    });
+    
+    // Global functions
+    function getCookie(name) {
+        const cookieValue = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return cookieValue ? cookieValue.pop() : '';
+    }
+</script>
+    
+{% endblock content %}

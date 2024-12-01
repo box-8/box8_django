@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Mon bureau{% endblock title %}
+
+
+
+{% block content %}
+<h1>{{welcome}}</h1>
+<div class="container">
+    <div class="row mt-5">
+        <div class="col col-3">
+            <img src="{% static 'images/naldea-user-visage.png'%}" class="img-fluid " style="width:150px"/>
+            <h4>Mon compte</h4>
+        </div>
+        <div class="col">
+            <a href="{% url 'authapp:edit' %}" class="btn btn-link">Mettre à jour vos informations personnelles</a>
+            <br/><br/>
+            <a href="{% url 'authapp:password_change' %}" class="btn btn-link">Modifier votre mot de passe</a>
+        </div>
+    </div>
+    <div class="row mt-5">
+        <div class="col col-3">
+            <img src="{% static 'images/naldea-visage.png'%}" class="img-fluid " style="width:150px"/>
+            <h4>Boite à outils Engineeria</h4>
+        </div>
+        <div class="col">
+            <a href="{% url 'chatapp:chatapp_dashboard' %}" class="btn btn-link">Analyse documentaire</a>
+            <a href="{% url 'chatapp:models_dashboard' %}" class="btn btn-link">Modèles Naldéo</a>
+        </div>
+    </div>
+</div>
+
+    
+    
+{% endblock content %}

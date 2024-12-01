@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load bootstrap5 %}
+{% load static %}
+{% block title %}Login{% endblock title %}
+
+{% block content_left %}
+{% if request.user.is_authenticated %}
+    {% include "sidebar.html" %}
+{% else %}
+    <div class="col-8">
+        <h5>Login</h5>
+        <form action="" method="post" class="form ">
+            {% csrf_token %}
+            {% bootstrap_form form %}
+            <input type="hidden" name="next" value="{{ next }}" />
+            <button type="submit" class="btn btn-primary">Submit</button>
+            
+        </form>
+        <p><a href="{% url 'authapp:password_reset' %}">Mot de pass oublié?</a></p>
+        {% if form.errors %}
+        <p>
+            Votre nom d'utilisateur n'est pas connue, essayer à nouveau.
+        </p>
+        {% else %}
+        <p>Saisir vos identifiants</p>
+        {% endif %}
+    </div>
+{% endif  %}
+{% endblock content_left %}
+
+{% block content %}
+
+<center>
+    <h5>Bienvenue sur Engineeria,</h5>
+    
+    <p>
+        <img src="{% static 'images/logo.png'%}" class="img-fluid " style="max-width:800px"/>
+    </p>
+</center>
+    
+
+
+{% endblock content %}

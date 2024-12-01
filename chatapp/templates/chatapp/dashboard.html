@@ -1,0 +1,766 @@
+{% extends "base.html" %}
+{%load static %}
+{% block css %}
+  <link rel="stylesheet" href="{% static 'css/chat.css' %}">
+{% endblock css %}
+{% block title %}Analyse documentaire{% endblock title %}
+
+{% block content_left %}
+<h5>Dossiers d'analyse</h5>
+<div class="mb-1 btn-group">
+  <a href="javascript:void(0)" id="btn_modal_open_new_analyse" class="btn btn-outline-primary" >Nouveau ...</a>
+  <a href="javascript:void(0)" id="btn_modal_open_delete_analyse" class="btn btn-outline-primary" >Supprimer</a>
+</div>
+<ul id="explorer_analyses" class="list-group">
+  loading ...
+</ul>
+
+{% endblock content_left %}
+
+{% block content %}
+<h3>{{welcome}}</h3>
+<br>
+<section >
+    <div class="container" data-aos="fade-up">
+      <ul class="nav nav-tabs" id="myTab" role="tablist">
+        
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="fiches-tab" data-bs-toggle="tab" data-bs-target="#fiches-panel" type="button" role="tab" aria-controls="fiches-panel" aria-selected="false">Analyse</button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+          <button class="nav-link " id="fichier-tab" data-bs-toggle="tab" data-bs-target="#fichier-panel" type="button" role="tab" aria-controls="fichier-panel" aria-selected="true">Fichier</button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+          <button class="nav-link " id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-panel" type="button" role="tab" aria-controls="chat-panel" aria-selected="false">Conversation</button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="carte-tab" data-bs-toggle="tab" data-bs-target="#carte-panel" type="button" role="tab" aria-controls="carte-panel" aria-selected="false">Carte</button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="redaction-tab" data-bs-toggle="tab" data-bs-target="#redaction-panel" type="button" role="tab" aria-controls="redaction-panel" aria-selected="false">Rédaction</button>
+        </li>
+
+      </ul>
+
+      <div class="tab-content" id="myTabContent">
+
+        <div class="tab-pane fade show active" id="fiches-panel" role="tabpanel" aria-labelledby="fiches-tab">
+          <div class="section-title pt-3">
+            <h4 id="fiches-panel-title">Dossier</h4>
+            <h5>Actions disponibles</h5>
+
+            <div class="mb-1 btn-group">
+              <a href="javascript:void(0)" id="btn_modal_open_upload" class="btn btn-outline-primary" >Upload ...</a>
+              <a href="javascript:void(0)" id="btn_fusion_pdf" class="btn btn-outline-primary" >Fusionner les pdf</a>
+            </div>
+            <h5>Contenu du dossier d'analyse</h5>
+            <ul id="explorer_fiches" class="list-group">
+              Choisir un dossier d'analyse ...
+            </ul>
+          </div>
+        </div>
+
+        <div class="tab-pane fade" id="fichier-panel" role="tabpanel" aria-labelledby="fichier-tab">
+          <div class="section-title pt-3">
+            <h4 id="fichier-panel-title">Fichier</h4>
+            <h5>Actions disponibles</h5>
+            <div class="row">
+              <div class="col-12">
+                <div class="mb-1 btn-group">
+                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-vectoriser" >Vectoriser le fichier</a>
+                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-delete" >Supprimer le fichier</a>
+                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-plotmap" >Géolocaliser les informations</a>
+                </div>
+              </div> 
+            </div>
+            <div class="row" >
+              <div class="col-12">
+                <h5>Informations du fichier sélectionné</h5>
+                <div class="mb-1 btn-group">
+                  <a href="#" class="btn btn-outline-primary" id="viewer-iframe">Voir le fichier</a>
+                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-showdetails">Voir le résumé</a>
+                </div>
+                </br>
+                <div id="filedetails" style="display:none">Pas de contenu, sélectionner un fichier dans l'onglet Analyse</div>
+              </div> 
+            </div>
+            
+          </div>
+        </div>
+
+        <div class="tab-pane fade " id="chat-panel" role="tabpanel" aria-labelledby="chat-tab">
+          <div class="section-title pt-3">
+            <h4 id="chat-panel-title">Conversation</h4>
+            <h5>Historique des conversations</h5>
+            <div class="row">
+              <div class="col-8">
+                <div class="input-group mb-3">
+                  <input id="prompt" type="text" class="form-control" placeholder="Prompt ..." >
+                  <button id="prompt-send" class="btn btn-outline-secondary" type="button">Send</button>
+                </div>
+              </div>
+            </div>
+            
+          </div>
+          <div id="conversation" class="input-group mb-3"></div>
+        </div>
+
+
+        <div class="tab-pane fade " id="carte-panel" role="tabpanel" aria-labelledby="carte-tab">
+          <div class="section-title pt-3">
+            <h4>Carte interactive</h4>
+            <h5>Les informations géographiques s'affichent ici</h5>
+            <div class="input-group mb-3">
+              <button id="plot-doc" class="btn btn-outline-secondary" type="button">Afficher le Document</button>
+              <button id="map-mode" class="btn btn-outline-secondary" type="button">mode consultation</button>
+            </div>
+            <div id="map"></div>
+          </div>
+        </div>
+
+        <div class="tab-pane fade " id="redaction-panel" role="tabpanel" aria-labelledby="redaction-tab">
+          <div class="section-title pt-3">
+            <h4>Rédaction </h4>
+            <h5>Rédiger votre note de synthèse dans cet onglet</h5>
+            <div class="input-group mb-3">
+              <button id="redac-save" class="btn btn-outline-secondary" type="button">Sauvegarder le Document</button>
+            </div>
+            <div id="wysiwyg"></div>
+          </div>
+        </div>
+        
+
+      </div>
+      
+    </div>
+  </section>
+
+<!-- Modal modal_new_analyse -->
+<div class="modal fade" id="modal_new_analyse" tabindex="-1" aria-labelledby="NewAnalyseModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="new-analyse-form">
+      <div class="modal-content">
+          <div class="modal-header">
+              <h5 class="modal-title" id="NewAnalyseModalLabel">Créer un Répertoire</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+              <!-- Formulaire -->
+                  <div class="mb-3">
+                      <label for="new_analyse_name" class="form-label">Nom du Répertoire d'analyse :</label>
+                      <input type="text" class="form-control" id="new_analyse_name" name="new_analyse_name" required>
+                  </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Créer</button>  
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          </div>
+      </div>
+    </form>
+  </div>
+</div>  
+
+
+<!-- Modal modal_upload_files -->
+<div class="modal fade" id="modal_upload_files" tabindex="-1" aria-labelledby="UploadModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="upload-form" method="post" enctype="multipart/form-data" class="mb-3">
+      <div class="modal-content">
+          <div class="modal-header">
+              <h5 class="modal-title" id="UploadModalLabel"><span id="span_upload_dir"></span><h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+              <!-- Formulaire -->
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="file-input" class="form-label">Sélectionner les fichiers à télécharger </label>
+                    <input type="file" class="form-control" name="files" id="file-input" accept=".pdf, .doc, .docx" multiple>
+                </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Envoyer</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          </div>
+      </div>
+    </form>
+  </div>
+  
+</div>  
+
+
+
+<!-- Script gestion dossiers analyse et upload fichiers -->
+<script>
+  var analyse_courante = {"username":"","analyse":"","entries":[],"prompt":""} 
+  var fichier_courant ={"filename":""}
+
+  $(document).ready(function () {
+    toastPosition = "top-left"
+    
+    // vide les listes analyse ou fiches
+    function explorerEmpty(target){
+      $("#"+target).html("")
+    }
+
+    // remplit les listes analyses et fiches 
+    function explorerPopulate(target,json){
+      explorerEmpty(target)
+      console.log("explorerPopulate",json)
+      
+      $.each(json.entries, function (index, entry) {
+        let listItem = $("<a href='javascript:void(0);' class='list-group-item'>" + entry.caption + "</a>")
+        listItem.attr("id",entry.type+"-"+entry.id)
+
+        if(entry.type=="analyse"){
+          listItem.addClass("list-group-item-analyse")
+          listItem.click(function(){
+            $(".list-group-item-analyse").removeClass("active")
+            $(this).addClass("active")
+            dossier_analyse = entry.caption
+            $("#fiches-tab").html("Analyse : " + entry.caption)
+            $("#fiches-panel-title").html(entry.caption)
+            chatapp_ajax_set_analyse(dossier_analyse)
+            ongletFichierEmpty()
+          });
+          listItem.on( "dblclick", function() {
+            $("#fiches-tab").click()
+          });
+          
+
+        }else if(entry.type=="new_analyse"){
+
+        }else{ // type = document
+          if (! entry.memorized) {listItem.addClass("list-group-item-warning");}
+          listItem.addClass("list-group-item-document")
+          // listItem.attr("title","double click pour charger les informations de la vectorisation")
+          listItem.click(function(){
+            ongletFichierEmpty()
+            fichier_courant.filename = entry.caption
+            fichier_courant.id = entry.type+"-"+entry.id
+            var capt = entry.caption
+            if(capt.length > 35){capt = entry.caption.substring(0, 35)+"..."}
+            $("#fichier-tab").html(capt)
+            $("#fichier-panel-title").html(entry.caption)
+            chatapp_set_fiches(entry.parent_analyse)
+            $("#viewer-iframe").click(function(){
+              url='/sharepoint/'+analyse_courante.username+'/'+ entry.parent_analyse+'/'+entry.caption
+              window.open(url, 'viewerIframe');
+            })
+
+            if (! entry.memorized) {
+              $(".list-group-item-document").removeClass("active")
+              //chatapp_memorize_doc(listItem, entry)
+              $.toast({heading: "Info",text: "Le document n'est pas vectorisé",position: toastPosition ,icon: "info", stack: true})
+              $("#fichier-tab").click()
+            }else{
+              // $(this).toggleClass("active")
+              $(".list-group-item-document").removeClass("active")
+              $(this).addClass("active")
+              chatapp_get_fichedetails(entry)
+              
+            }
+          });
+          listItem.on( "dblclick", function() {
+            $("#fichier-tab").click()
+          });
+        }
+        $("#"+target).append(listItem);
+      });
+    }
+
+    
+    
+    
+    // stocke les fichiers sélectionnées dans analyse_courante.entries pour les poster au serveur 
+    function chatapp_set_fiches(analyse){
+      analyse_courante.analyse = analyse
+      // var additionalData = {"analyse":analyse, "entries":[]}
+      var newEntries = []
+      $("#explorer_fiches .active").each(function(){
+        newEntries.push($(this).html())
+      })
+      analyse_courante.entries = newEntries;
+      return false
+    }
+
+
+    // fonction commune $("#viewer-vectoriser").click et $("#viewer-delete").click
+    function get_fichier_courant(){
+      if (fichier_courant.filename==""){
+        $.toast({heading: "Erreur",text: "Choisir un fichier",position: toastPosition,icon: "warning", stack: true}) 
+        return false
+      }
+      var listItem = $(".list-group-item-document:contains('"+ fichier_courant.filename +"')");
+      if (listItem.length !=1){
+        console.log("Erreur")
+        return false
+      }
+      var entry = {}
+      entry.parent_analyse = analyse_courante.analyse
+      entry.caption = fichier_courant.filename
+      entry.memorized= !listItem.hasClass("list-group-item-warning")
+      entry.type = "document"
+      
+      var return_object={}
+      return_object.entry = entry
+      return_object.listItem = listItem
+      return return_object
+    }
+
+    $("#viewer-vectoriser").click(function(){
+      curfile = get_fichier_courant()
+      if (curfile===false){
+        $.toast({heading: "Erreur",text: "Choisir un fichier",position: toastPosition,icon: "danger", stack: true})
+      }else{
+        console.log("OK memorize", curfile)
+        chatapp_memorize_doc(curfile.listItem, curfile.entry)
+      }
+      
+    })
+    
+    // lance la vectorisation d'un document en async
+    function chatapp_memorize_doc(listItem, entry){
+      analyse_courante.analyse = entry.parent_analyse
+      analyse_courante.entries = [entry.caption]
+      console.log("chatapp_memorize_doc",analyse_courante)
+      var confirmation = confirm("Êtes-vous sûr de vouloir vectoriser le document, l'opération peut prendre un certain temps ?");
+      if (confirmation) {
+        chatapp_memorize_doc_ajax(listItem, entry)
+      }
+    }
+
+    function chatapp_memorize_doc_ajax(listItem, entry){
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_memorize' %}',
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+        },
+        success: function (response) {
+          $.toast({heading: "vectorisation",text: response.content,position: toastPosition,icon: response.state, stack: true,hideAfter: 5000})
+          if(listItem !== undefined){listItem.removeClass("list-group-item-warning")}
+          if(entry !== undefined){entry.memorized = true}
+          
+          console.log(response);
+          chatapp_ajax_set_analyse(analyse_courante.analyse)
+        },
+        error: function () {
+        }
+      });
+    }
+
+    $("#viewer-delete").click(function(){
+      curfile = get_fichier_courant()
+      if (curfile===false){
+        $.toast({heading: "Erreur",text: "Choisir le fichier à effacer",position: toastPosition,icon: "danger", stack: true})
+      }else{
+        console.log("OK delete", curfile)
+        chatapp_delete_doc(curfile.listItem, curfile.entry)
+      }
+
+    });
+    
+    function chatapp_delete_doc(listItem, entry){
+      analyse_courante.analyse = entry.parent_analyse
+      analyse_courante.entries = [entry.caption]
+      var confirmation = confirm("Êtes-vous sûr de vouloir supprimer le document ? \n"+ entry.caption);
+      if (confirmation) {
+        $.ajax({
+          url: '{% url 'chatapp:chatapp_delete_file' %}',
+          type: 'POST',
+          data: JSON.stringify(analyse_courante), 
+          contentType: 'application/json', 
+          beforeSend: function(xhr, settings){
+            xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          },
+          success: function (response) {
+            console.log(response);
+            explorerPopulate("explorer_fiches",response)
+            ongletFichierEmpty()
+          },
+          error: function () {
+            ongletFichierEmpty()
+          }
+        });
+      }
+    }
+
+    $('#viewer-plotmap').click(function(event) {
+      map_plot_doc()
+    });
+
+    function ongletFichierEmpty(){
+      $("#fichier-tab").html("Fichier")
+      $("#fichier-panel-title").html("")
+      $("#filedetails").html("Pas de contenu, sélectionner un fichier dans l'onglet Analyse")
+    }
+    
+
+    // obtient le détail du dernier fichier séléctionné
+    function chatapp_get_fichedetails(entry){
+      analyse_courante.analyse = entry.parent_analyse
+      analyse_courante.entries = [entry.caption]
+      var url = '{% url "chatapp:afficher_resume_vectorisation" "0" "0" %}'.replace('0', entry.parent_analyse).replace('0', entry.caption);
+      $.ajax({
+        url: url,
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+        },
+        success: function (response) {
+          $.toast({heading: "Info", text: "Le résumé du document vectorisé est disponible dans l'ongle l'onglet Fichier.<br/>Tip : double click pour accèder à l'information", position: toastPosition, icon: response.state, stack: true,hideAfter: 7000 })
+          $("#filedetails").html(response.content)
+          
+          console.log(response);
+        },
+        error: function () {
+        }
+      });
+    }
+    $('#viewer-showdetails').click(function(){
+      $(this).toggleClass("btn-info")
+      $('#filedetails').toggle()
+    });
+    
+
+    // liste les dossiers d'analyses de l'utilisateur
+    function explorer_analyses(){
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_ajax_analyses' %}',
+        type: 'GET',
+        beforeSend: function(){
+        },
+        success: function(response) {
+          analyse_courante.username = response.username
+          explorerPopulate("explorer_analyses",response)
+        },
+        error: function() {
+        }
+      });
+    }
+    // initialisation de la iste des analyse au chargement de la page
+    explorer_analyses()
+
+    
+    $("#btn_modal_open_delete_analyse").click(function () {
+      if(analyse_courante.analyse==""){
+        $.toast({
+          heading: "Upload de fichiers",
+          text: "Choisir le dossier d'analyse à supprimer",
+          position: 'top-left',
+          icon: 'warning', // Type of toast icon
+          stack: false
+        })
+        return false
+      }else{
+        var confirmation = confirm("Êtes-vous sûr de vouloir supprimer ce dossier d'analyse et son contenu ?");
+        if (confirmation) {
+          $.ajax({
+            url: '{% url 'chatapp:chatapp_ajax_delete_analyse' %}',
+            type: 'POST',
+            data: JSON.stringify(analyse_courante), 
+            contentType: 'application/json', 
+            beforeSend: function(xhr, settings){
+              xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+            },
+            success: function (response) {
+                explorerPopulate("explorer_analyses",response)
+                explorerEmpty("explorer_fiches")
+                console.log(response);
+            },
+            error: function () {
+            }
+          });
+        }else{
+          console.log("opération annulée : chatapp_ajax_delete_analyse")
+        }
+      }
+      
+    });
+
+    $("#btn_modal_open_upload").click(function () {
+      if(analyse_courante.analyse==""){
+        $.toast({
+          heading: "Upload de fichiers",
+          text: "Choisir un dossier d'analyse",
+          position: 'top-left',
+          icon: 'error', // Type of toast icon
+          stack: false
+        })
+        return false
+      }
+      $("#span_upload_dir").html("Dossier d'Analyse <b class='text-info'>" + analyse_courante.analyse+"</b>");
+      $("#modal_upload_files").modal('show');
+    });
+
+
+    $("#btn_fusion_pdf").click(function () {
+      console.log("btn_fusion_pdf", analyse_courante)
+      
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_ajax_fusion_pdf' %}',
+        type: 'POST',
+        data:analyse_courante,
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+        },
+        success: function(response) {
+          console.log(response)
+          explorerPopulate("explorer_fiches",response)
+        },
+        error: function() {
+        }
+      });
+    });
+    
+
+    $('#upload-form').submit(function (e) {
+        var form = $(this)
+        e.preventDefault();
+        var formData = new FormData(this);
+        formData.append("analyse",analyse_courante.analyse)
+        $.ajax({
+            url: '{% url 'chatapp:chatapp_upload' %}', 
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+              form[0].reset()
+              explorerPopulate("explorer_fiches",response)
+              $("#modal_upload_files").modal('hide');
+            },
+            error: function (error) {
+              console.log(error);
+            }
+        });
+    });
+
+    $("#btn_modal_open_new_analyse").click(function(){
+      $("#modal_new_analyse").modal('show');
+    });
+    
+
+    $('#new-analyse-form').submit(function (e) {
+      var form = $(this)
+      e.preventDefault();
+      var new_analyse_name = $("#new_analyse_name").val();
+      if(new_analyse_name==""){return false} 
+      $.ajax({
+          type: "POST",
+          url: "{% url 'chatapp:chatapp_ajax_new_analyse' %}",
+          data: JSON.stringify({'analyse': new_analyse_name}),
+          contentType: 'application/json',
+          beforeSend: function(xhr, settings){
+            xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          },
+          success: function (response) {
+            form[0].reset()
+            explorerPopulate("explorer_analyses",response)
+            $("#modal_new_analyse").modal('hide');
+
+          },
+          error: function (error) {
+              console.log(error);
+          }
+      });
+    });
+
+    
+    
+    
+    // liste les dossiers d'analyses de l'utilisateur
+    function chatapp_ajax_set_analyse(analyse){
+      analyse_courante.analyse = analyse
+      analyse_courante.entries=[]
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_ajax_set_analyse' %}',
+        type: 'POST',
+        data:analyse_courante,
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+        },
+        success: function(response) {
+          explorerPopulate("explorer_fiches",response)
+        },
+        error: function() {
+        }
+      });
+    }
+
+    
+    /* Fonctionnalités de chat */
+    function chatapp_talk(){
+      question = $('#prompt').val()
+      if(question==""){return false}
+      analyse_courante.prompt=question
+      const qa = newQA();
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_talk' %}',
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          qa.prepend(newPrompt(question, "info"))
+          $('#prompt').val("")
+        },
+        success: function(response) {
+            qa.append(newPrompt(response.content, response.state))
+            console.log(response);
+        },
+        error: function(e) {
+            qa.prepend(newPrompt('Une erreur s\'est produite.', response.state))
+            $('#prompt').val(question)
+            console.log(e);
+        }
+      });
+
+    }
+    
+    function newQA(){
+      qa = $("<div class='container'></div>")
+      $("#conversation").prepend(qa)
+      return qa
+    }
+    function newPrompt(p, className="success"){
+      if (className!="info"){Col=""}else{Col="<div class='col-1'></div>"}
+      return $("<div class='row'>"+Col+"<div class='col-11 alert alert-"+className+"'>"+p+"</div></div>")
+    }
+    $('#prompt-send').click(function(event) {
+      chatapp_talk()
+    });
+
+    $('#prompt').keypress(function(event) {
+      if (event.which === 13) {
+        event.preventDefault();
+        chatapp_talk();
+      }
+    });
+
+
+  });
+  // Global functions
+  function getCookie(name) {
+      const cookieValue = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+      return cookieValue ? cookieValue.pop() : '';
+  }
+</script>
+
+
+
+
+  <!-- Script actions sur carte interactive -->
+  <script>
+
+    const posNaldeo = [45.76316281678944, 4.860897385287324]
+    var map = {}
+    var markers = []
+    var markerGroup = new L.featureGroup()
+    
+  function map_plot_doc(){
+    analyse_courante.prompt="map_plot_doc"
+    $.ajax({
+      url: '{% url 'chatapp:chatapp_talk' %}',
+      type: 'POST',
+      data: JSON.stringify(analyse_courante), 
+      contentType: 'application/json', 
+      beforeSend: function(xhr, settings){
+        xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+        $("#carte-tab").click()
+        $.toast({heading: "Info",text: "Extraction des informations de géolocalisation en cours ...",position: toastPosition,icon: "info", stack: true})
+      },
+      success: function(response) {
+        console.log(response) 
+        
+        plot_response(response)
+        
+        
+        
+      },
+      error: function(e) {
+        
+      }
+    });
+  }
+
+  function plot_response(json_plot){
+    var filename = json_plot.filename
+    var summary = json_plot.summary
+
+    json_plot.infos_geographiques.forEach(function(markerData, index) {
+      // console.log(markerData)
+      let latlng = [markerData.lat,markerData.lng]
+      //let marker = L.marker(latlng).addTo(map);
+      let marker = L.marker(latlng)
+      let popup = L.popup().setLatLng(latlng).setContent("<b>"+filename+"</b><br>"+markerData.title+" : "+markerData.contexte+"<br>page : "+markerData.page) // .openOn(map);
+      marker.bindPopup(popup)
+      marker.on('dragend', function (event) {
+        let position = this.getLatLng();
+        this.bindPopup(popup)
+        $.toast({heading: "Info",text: "Marker déplacé à : " + position.lat + ',' + position.lng ,position: toastPosition,icon: "info", stack: true})
+      });
+      // markers.push(marker)
+      marker.addTo(markerGroup)
+    });
+    map.addLayer(markerGroup);
+    map.fitBounds(markerGroup.getBounds());
+  }
+  
+    $(document).ready(function () {
+
+      $("#plot-doc").on("click", function() {
+        map_plot_doc()
+      });
+      $("#carte-tab").on("click", function() {
+        var btn = $(this)
+        if (btn.hasClass("text-info")){
+        }else{
+          btn.addClass("text-info")
+          setTimeout(function() {initmap()}, 500);
+        }
+      });
+
+      function initmap(){
+        map = L.map('map').setView(posNaldeo, 12);
+        const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+        map.attributionControl.setPrefix('');
+      }
+
+      $("#map-mode").on("click", function() {
+        if ( this.innerHTML == 'mode consultation') {
+          this.innerHTML ='mode édition'
+        } else {
+          this.innerHTML ='mode consultation'
+        }
+        markerGroup.eachLayer(function(marker) {
+          if ( marker.dragging._enabled ) {
+            marker.dragging.disable();
+          } else {
+            marker.dragging.enable();
+          }
+        })
+  
+      });   
+
+
+    });
+
+    
+  </script>
+
+
+
+{% endblock content %}

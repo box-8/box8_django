@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Dashboard{% endblock title %}
+
+
+
+{% block content %}
+<h1>{{welcome}}</h1>
+<p>
+    <img src="{% static 'images/naldea-user-working.png'%}" class="img-fluid float-left" style="width:400px"/>
+</p>
+
+<div class="container">
+    
+    <h4 id="l-analyse-m-tier-assist-e-par-ia">L&#39;analyse métier assistée par IA</h4>
+    <p>Le Projet Engineeria consiste à porter sur l&#39;intranet Naldeo une interface web conviviale, orientée métier, pour permettre l&#39;analyse de documents assistée par intelligence artificielle.</p>
+    <p>Les fonctionnalités de base de la version bêta de démonstration de Naldéa permettent actuellement :</p>
+    <ul>
+        <li>Un login / gestion des utilisateurs</li>
+        <li>La création/suppression de dossiers d&#39;analyse (groupe de documents)</li>
+        <li>Le téléchargement et la vectorisation des fichiers à analyser en mode asynchrone.</li>
+        <li>De conduire (et sauvegarder) des discussions avec les documents mémorisés</li>
+        <li>De lancer des séquences d&#39;analyse standardisés (sommaire, résumé, couts d&#39;analyse, affichage géolocalisé du contenu des documents)</li>
+        <li>De lancer des prompts métiers (webscrapping, extraction de caractéristiques techniques, génération de rapport Excel, vérification de cohérence inter-documentaire)</li>
+    </ul>
+    <h4 id="techno-version-b-ta">Techno version béta</h4>
+    <p>La version béta de démonstration de l&#39;interface utilisateur Naldéa est basée sur les technologies :</p>
+    <ul>
+        <li>Django / SQLite pour le serveur web et la gestion des droits d&#39;authentification</li>
+        <li>HTML5 / Bootstrap5/ jQuery pour le front &#39;single page application&#39;l&#39;API python OPENAI pour la vectorisation et le questionnement des documents, rassemblée sous un ensemble de classes informatiques, dénommé Engineeria.</li>
+        <li>Git pour le versionning (dépôt sur gitlab)</li>
+    </ul>
+    <h4 id="perspectives">Perspectives</h4>
+    <p>Le projet en version bêta doit permettre de :</p>
+    <ul>
+        <li>Valider les temps de réponse de l&#39;api OpenAI pour plusieurs utilisateurs connectés simultanément (en mémorisation et questionnement)</li>
+        <li>Tester notamment la stabilité et la scalabilité de la solution OpenAI pour un déploiement en version 1</li>
+        <li>Recueillir l&#39;intérêt de ce type d&#39;outils auprès des collaborateurs &quot;métiers&quot; (maîtrise d&#39;œuvre classique construction et assistance à maîtrise d&#39;ouvrage)</li>
+        <li>Valider l&#39;emploi des technologies mises en œuvre dans la version démonstration pour un développement interne ou suggérer d&#39;autres solutions, le recours à d&#39;autres librairies actuellement en pleine apparition, en fonction des compétences actuelles (Angular vs Jquery, Naldia vs langchain, openai vs Bard vs Llama, sql vs chroma, guidance, etc)Tester la possibilité d&#39;intégrer le sharepoint Microsoft au système d&#39;analyse documentaire</li>
+    </ul>
+    <p>
+        <br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
+    </p>
+    
+
+
+<!--
+<h4 id="getting-started">Getting started</h4>
+<p>To make it easy for you to get started with GitLab, here&#39;s a list of recommended next steps.</p>
+<p>Already a pro? Just edit this README.md and make it your own. Want to make it easy? <a href="#editing-this-readme">Use the template at the bottom</a>!</p>
+<h4 id="add-your-files">Add your files</h4>
+<ul>
+<li>[ ] <a href="https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file">Create</a> or <a href="https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file">upload</a> files</li>
+<li>[ ] <a href="https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line">Add files using the command line</a> or push an existing Git repository with the following command:</li>
+</ul>
+<pre><code><span class="hljs-keyword">cd</span> existing_repo
+git remote <span class="hljs-built_in">add</span> origin http<span class="hljs-variable">s:</span>//gitlab.<span class="hljs-keyword">com</span>/naldia/auth.git
+git branch -M main
+git push -uf origin main
+</code></pre><h4 id="integrate-with-your-tools">Integrate with your tools</h4>
+<ul>
+<li>[ ] <a href="https://gitlab.com/naldia/auth/-/settings/integrations">Set up project integrations</a></li>
+</ul>
+<h4 id="collaborate-with-your-team">Collaborate with your team</h4>
+<ul>
+<li>[ ] <a href="https://docs.gitlab.com/ee/user/project/members/">Invite team members and collaborators</a></li>
+<li>[ ] <a href="https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html">Create a new merge request</a></li>
+<li>[ ] <a href="https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically">Automatically close issues from merge requests</a></li>
+<li>[ ] <a href="https://docs.gitlab.com/ee/user/project/merge_requests/approvals/">Enable merge request approvals</a></li>
+<li>[ ] <a href="https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html">Set auto-merge</a></li>
+</ul>
+<h4 id="test-and-deploy">Test and Deploy</h4>
+<p>Use the built-in continuous integration in GitLab.</p>
+<ul>
+<li>[ ] <a href="https://docs.gitlab.com/ee/ci/quick_start/index.html">Get started with GitLab CI/CD</a></li>
+<li>[ ] <a href="https://docs.gitlab.com/ee/user/application_security/sast/">Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)</a></li>
+<li>[ ] <a href="https://docs.gitlab.com/ee/topics/autodevops/requirements.html">Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy</a></li>
+<li>[ ] <a href="https://docs.gitlab.com/ee/user/clusters/agent/">Use pull-based deployments for improved Kubernetes management</a></li>
+<li>[ ] <a href="https://docs.gitlab.com/ee/ci/environments/protected_environments.html">Set up protected environments</a></li>
+</ul>
+<hr>
+<h1 id="editing-this-readme">Editing this README</h1>
+<p>When you&#39;re ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to <a href="https://www.makeareadme.com/">makeareadme.com</a> for this template.</p>
+<h4 id="suggestions-for-a-good-readme">Suggestions for a good README</h4>
+<p>Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.</p>
+<h4 id="name">Name</h4>
+<p>Choose a self-explaining name for your project.</p>
+<h4 id="description">Description</h4>
+<p>Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.</p>
+<h4 id="badges">Badges</h4>
+<p>On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.</p>
+<h4 id="visuals">Visuals</h4>
+<p>Depending on what you are making, it can be a good idea to include screenshots or even a video (you&#39;ll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.</p>
+<h4 id="installation">Installation</h4>
+<p>Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.</p>
+<h4 id="usage">Usage</h4>
+<p>Use examples liberally, and show the expected output if you can. It&#39;s helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.</p>
+<h4 id="support">Support</h4>
+<p>Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.</p>
+<h4 id="roadmap">Roadmap</h4>
+<p>If you have ideas for releases in the future, it is a good idea to list them in the README.</p>
+<h4 id="contributing">Contributing</h4>
+<p>State if you are open to contributions and what your requirements are for accepting them.</p>
+<p>For people who want to make changes to your project, it&#39;s helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.</p>
+<p>You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.</p>
+<h4 id="authors-and-acknowledgment">Authors and acknowledgment</h4>
+<p>Show your appreciation to those who have contributed to the project.</p>
+<h4 id="license">License</h4>
+<p>For open source projects, say how it is licensed.</p>
+<h4 id="project-status">Project status</h4>
+<p>If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.</p>
+-->
+</div>
+
+    
+    
+{% endblock content %}

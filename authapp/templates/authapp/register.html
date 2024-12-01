@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load bootstrap5 %}
+{% block title %}Registration{% endblock title %}
+
+{% block content_left %}{% endblock content_left %}
+
+{% block content %}
+
+{% if form.errors %}
+    
+{% endif %}
+<div style="text-align: center;">
+    <h1>Créer votre compte utilisateur</h1>
+    <p>
+        Saisir vos coordonnés pour ouvrir votre accès au service.
+    </p>
+</diV>
+<form action="" method="post" class="form container">
+    {% csrf_token %}
+    {% bootstrap_form form %}
+    {% bootstrap_button "Save" button_type="submit" button_class="btn-primary" %}
+</form>
+{% endblock content %}

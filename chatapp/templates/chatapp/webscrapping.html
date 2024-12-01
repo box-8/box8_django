@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Webscrapping{% endblock title %}
+
+
+
+{% block content %}
+<h1>{{welcome}}</h1>
+<div class="container">
+    <div class="row mt-5">
+        <div class="col col-3">
+            <img src="{% static 'images/naldea-user-working.png'%}" class="img-fluid " style="width:200px"/>
+        </div>
+        <div class="col">
+            <a href="{% url 'chatapp:chatapp_webscrapping_demo' %}" class="btn btn-link">Developpement Durable</a>
+        </div>
+    </div>
+</div>
+
+    
+    
+{% endblock content %}

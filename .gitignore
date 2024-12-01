@@ -1,0 +1,13 @@
+
+
+venv/
+src/__pycache__/
+naldia/__pycache__/
+authapp/__pycache__/
+authapp/migrations/__pycache__/
+
+chatapp/__pycache__/
+chatapp/migrations/__pycache__/
+chatapp/sharepoint/**
+
+

@@ -1,0 +1,15 @@
+Django==3.0.9
+django-bootstrap-v5
+fitz
+docx
+jsonlines
+tqdm
+validators
+beautifulsoup4
+requests
+openai
+numpy
+tiktoken
+PyPDF2
+markdown
+python-pptx

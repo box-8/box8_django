@@ -1,0 +1,55 @@
+{% load static %}
+
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{% if request.user.is_authenticated %}{% url 'authapp:dashboard' %}{% else %}{% url 'authapp:login' %}{% endif %}">
+            <img src="{% static 'images/logo.png' %}" alt="Description de l'image" style="height:30px"> Engineeria (dev)
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNavDropdown">
+            <ul class="navbar-nav">
+                {% if request.user.is_authenticated %}
+                <li class="nav-item">
+                    <a href="{% url 'authapp:dashboard' %}" class="nav-link">Acceuil</a>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <a href="{% url 'authapp:login' %}" class="nav-link">Sign In</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'authapp:register' %}" class="nav-link">Sign Up</a>
+                </li>
+                {% endif %}
+                
+            </ul>
+            <div class="navbar-nav ms-auto bd-highlight me-2">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        {% if request.user.is_authenticated %} {{user.username}} {% else %}Visitor{% endif %}
+                    </a>
+                    <!-- Déplacez la classe ml-auto ici -->
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownMenuLink">
+                        {% if request.user.is_authenticated %}
+                        <li><a href="{% url 'authapp:dashboard' %}" class="dropdown-item">Mon bureau<span class="sr-only">(current)</span></a></li>
+                        <hr />
+                        <li><a href="{% url 'authapp:edit' %}" class="dropdown-item">Mon compte</a></li>
+                        <li><a href="{% url 'authapp:password_change' %}" class="dropdown-item">Mot de passe</a></li>
+                        <hr />
+                        
+                        <li><a href="{% url 'authapp:logout' %}" class="dropdown-item">Logout</a></li>
+                        {% else %}
+                        <li><a href="{% url 'authapp:login' %}" class="dropdown-item">Sign In</a></li>
+                        <li><a href="{% url 'authapp:register' %}" class="dropdown-item">Sign Up</a></li>
+                        <hr/>
+                        <li><a href="{% url 'authapp:password_reset' %}" class="dropdown-item">Mot de passe</a></li>
+                        {% endif %}
+                    </ul>
+                </li>
+            </div>
+
+        </div>
+    </div>
+</nav>

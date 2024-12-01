@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Analyse d'image{% endblock title %}
+
+
+
+{% block content %}
+<h1>{{welcome}}</h1>
+<div class="container">
+    <div class="row mt-5">
+        <div class="col col-3">
+            <img src="{% static 'images/naldea-user-working.png'%}" class="img-fluid " style="width:200px"/>
+        </div>
+        <div class="col">
+            Analyse d'images, vision par ordinateur
+        </div>
+    </div>
+</div>
+
+    
+    
+{% endblock content %}

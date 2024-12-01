@@ -1,0 +1,59 @@
+{% load static %}
+<ul class="nav nav-pills flex-column mb-sm-auto mb-0 align-items-center align-items-sm-start" id="sidebar">
+    <li>
+        <a href="#submenu1" data-bs-toggle="collapse" class="nav-link px-0 align-middle ">
+            <i class="fs-5 bi bi-people" ></i> <span class="ms-1 d-none d-sm-inline">Gestion utilisateurs</span>
+        </a>
+        <ul class="collapse nav flex-column ms-1" id="submenu1" data-bs-parent="#sidebar">
+            <li class="w-100">
+                <a href="{% url 'authapp:dashboard' %}" class="nav-link px-2"><i class="fs-5 bi bi-speedometer"></i> <span class="d-none d-sm-inline">Mon bureau</span></a>
+            </li>
+            <li class="w-100">
+                <a href="{% url 'authapp:edit' %}" class="nav-link px-2"><i class="fs-5 bi bi-person"></i> <span class="ms-1 d-none d-sm-inline">{% if request.user.is_authenticated %} {{user.username}} {% else %}Visitor{% endif %}</span></a>
+            </li>
+            <li class="w-100">
+                <a href="/admin" class="nav-link px-2"><i class="fs-5 bi bi-gear"></i> <span class="d-none d-sm-inline">Admin</span></a>
+            </li>
+        </ul>
+        
+    </li>
+    <li>
+        <a href="#submenu2" data-bs-toggle="collapse" class="nav-link px-0 align-middle ">
+            <i class="fs-5 bi bi-menu-app"></i> <span class="ms-1 d-none d-sm-inline">Analyse de texte</span>
+        </a>
+        <ul class="collapse nav flex-column ms-1" id="submenu2" data-bs-parent="#sidebar">
+            <li class="w-100">
+                <a href="{% url 'chatapp:chatapp_dashboard' %}" class="nav-link px-2"><i class="fs-5 bi bi-chat-dots"></i> <span class="d-none d-sm-inline">Analyse Documentaire</span></a>
+            </li>
+            <li class="w-100">
+                <a href="{% url 'chatapp:chatapp_webscrapping_demo' %}" class="nav-link px-2"><i class="fs-5 bi bi-eye"></i> <span class="d-none d-sm-inline">Webscrapping</span></a>
+            </li>
+            
+        </ul>
+    </li>
+    <li>
+        <a href="#submenu3" data-bs-toggle="collapse" class="nav-link px-0 align-middle ">
+            <i class="fs-5 bi bi-menu-app"></i> <span class="ms-1 d-none d-sm-inline">Machine learning</span>
+        </a>
+        <ul class="collapse nav flex-column ms-1" id="submenu3" data-bs-parent="#sidebar">
+            <li class="w-100">
+                <a href="{% url 'chatapp:models_dashboard' %}" class="nav-link px-2"><i class="fs-5 bi bi-file-spreadsheet"></i> <span class="d-none d-sm-inline">Modèles Naldéo</span></a>
+            </li>
+            <li class="w-100">
+                <a href="{% url 'chatapp:models_dpgf_demo' %}" class="nav-link px-2"><i class="fs-5 bi bi-file-spreadsheet"></i> <span class="d-none d-sm-inline">Economie de la construction</span></a>
+            </li>
+            <li class="w-100">
+                <a href="{% url 'chatapp:models_vision_demo' %}" class="nav-link px-2"><i class="fs-5 bi bi-file-spreadsheet"></i> <span class="d-none d-sm-inline">Vision par ordinateur</span></a>
+            </li>
+        </ul>
+    </li>
+    <li>
+        
+        <a href="{% url 'authapp:about' %}" class="nav-link px-0 align-middle">
+            <i class="fs-5 bi bi-question"></i> <span class="ms-1 d-none d-sm-inline">About</span>
+        </a>
+        <a href="{% url 'authapp:logout' %}" class="nav-link px-0 align-middle">
+            <i class="fs-5 bi bi-stop-circle"></i> <span class="ms-1 d-none d-sm-inline">Déconnexion</span>
+        </a>
+    </li>
+  </ul>

@@ -1,0 +1,61 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js" integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
+  
+    <!-- jQuery Plugins -->
+    <link rel="stylesheet" href="{% static 'css/jquery.toast.css' %}" />
+    <script src="{% static 'js/jquery.toast.js' %}" ></script>
+
+    <!-- Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.1/css/all.css" integrity="sha384-vp86vTRFVJgpjF9jiIGPEEqYqlDwgyBgEF109VFjmqGmIY/Y4HV4d3Gp2irVfcrp" crossorigin="anonymous" />
+
+    <!-- Bootstrap Icons v1.3.0 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+
+    {% block css %}{% endblock css %} 
+    {% load bootstrap5 %} 
+    {% bootstrap_css %}
+    {% bootstrap_javascript %}
+    
+
+    <title>{% block title %}{% endblock title %}</title>
+  </head>
+
+  <body>
+    {% include "navbar.html" %}
+    
+    <div class="">
+      <div class="row">
+          <!-- Première Colonne -->
+          <div class="m-2 col-md-3" >
+            {% block content_left %}
+              {% if request.user.is_authenticated %}
+                {% include "sidebar.html" %}
+              {% endif %}
+            {% endblock content_left %}  
+          </div>
+          <!-- Deuxième Colonne -->
+          <div class="m-2 col-md-8">
+            {% block content %} {% endblock content %}
+          </div>
+          <div class="m-2 col-md-1">
+          </div>
+      </div>
+    </div>
+  
+</body>
+</html>
