@@ -1,6 +1,5 @@
-
-
 venv/
+.venv/
 src/__pycache__/
 naldia/__pycache__/
 authapp/__pycache__/

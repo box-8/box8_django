@@ -14,6 +14,10 @@
 <ul id="explorer_analyses" class="list-group">
   loading ...
 </ul>
+<h5>Contenu du dossier d'analyse</h5>
+<ul id="explorer_fiches" class="list-group">
+  Choisir un dossier d'analyse ...
+</ul>
 
 {% endblock content_left %}
 
@@ -25,7 +29,7 @@
       <ul class="nav nav-tabs" id="myTab" role="tablist">
         
         <li class="nav-item" role="presentation">
-          <button class="nav-link active" id="fiches-tab" data-bs-toggle="tab" data-bs-target="#fiches-panel" type="button" role="tab" aria-controls="fiches-panel" aria-selected="false">Analyse</button>
+          <button class="nav-link active" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-panel" type="button" role="tab" aria-controls="chat-panel" aria-selected="false">Conversation</button>
         </li>
 
         <li class="nav-item" role="presentation">
@@ -33,22 +37,41 @@
         </li>
 
         <li class="nav-item" role="presentation">
-          <button class="nav-link " id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-panel" type="button" role="tab" aria-controls="chat-panel" aria-selected="false">Conversation</button>
-        </li>
-
-        <li class="nav-item" role="presentation">
           <button class="nav-link" id="carte-tab" data-bs-toggle="tab" data-bs-target="#carte-panel" type="button" role="tab" aria-controls="carte-panel" aria-selected="false">Carte</button>
         </li>
 
+
         <li class="nav-item" role="presentation">
-          <button class="nav-link" id="redaction-tab" data-bs-toggle="tab" data-bs-target="#redaction-panel" type="button" role="tab" aria-controls="redaction-panel" aria-selected="false">Rédaction</button>
+          <button class="nav-link " id="fiches-tab" data-bs-toggle="tab" data-bs-target="#fiches-panel" type="button" role="tab" aria-controls="fiches-panel" aria-selected="false">Dossier</button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="redaction-tab" data-bs-toggle="tab" data-bs-target="#redaction-panel" type="button" role="tab" aria-controls="redaction-panel" aria-selected="false">Options</button>
         </li>
 
       </ul>
 
       <div class="tab-content" id="myTabContent">
 
-        <div class="tab-pane fade show active" id="fiches-panel" role="tabpanel" aria-labelledby="fiches-tab">
+        <div class="tab-pane fade show active" id="chat-panel" role="tabpanel" aria-labelledby="chat-tab">
+          <div class="section-title pt-3">
+            <h4 id="chat-panel-title">Conversation</h4>
+            <h5>Historique des conversations</h5>
+            <div class="row">
+              <div class="col-8">
+                <div class="input-group mb-3">
+                  <input id="prompt" type="text" class="form-control" placeholder="Prompt ..." >
+                  <button id="prompt-send" class="btn btn-outline-secondary" type="button">Send</button>
+                </div>
+              </div>
+            </div>
+            
+          </div>
+          <div id="conversation" class="input-group mb-3"></div>
+        </div>
+
+
+        <div class="tab-pane fade  " id="fiches-panel" role="tabpanel" aria-labelledby="fiches-tab">
           <div class="section-title pt-3">
             <h4 id="fiches-panel-title">Dossier</h4>
             <h5>Actions disponibles</h5>
@@ -57,10 +80,7 @@
               <a href="javascript:void(0)" id="btn_modal_open_upload" class="btn btn-outline-primary" >Upload ...</a>
               <a href="javascript:void(0)" id="btn_fusion_pdf" class="btn btn-outline-primary" >Fusionner les pdf</a>
             </div>
-            <h5>Contenu du dossier d'analyse</h5>
-            <ul id="explorer_fiches" class="list-group">
-              Choisir un dossier d'analyse ...
-            </ul>
+            
           </div>
         </div>
 
@@ -85,31 +105,14 @@
                   <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-showdetails">Voir le résumé</a>
                 </div>
                 </br>
-                <div id="filedetails" style="display:none">Pas de contenu, sélectionner un fichier dans l'onglet Analyse</div>
+                <div id="filedetails" style="display:none">Pas de contenu, sélectionner un fichier</div>
               </div> 
             </div>
             
           </div>
         </div>
 
-        <div class="tab-pane fade " id="chat-panel" role="tabpanel" aria-labelledby="chat-tab">
-          <div class="section-title pt-3">
-            <h4 id="chat-panel-title">Conversation</h4>
-            <h5>Historique des conversations</h5>
-            <div class="row">
-              <div class="col-8">
-                <div class="input-group mb-3">
-                  <input id="prompt" type="text" class="form-control" placeholder="Prompt ..." >
-                  <button id="prompt-send" class="btn btn-outline-secondary" type="button">Send</button>
-                </div>
-              </div>
-            </div>
-            
-          </div>
-          <div id="conversation" class="input-group mb-3"></div>
-        </div>
-
-
+        
         <div class="tab-pane fade " id="carte-panel" role="tabpanel" aria-labelledby="carte-tab">
           <div class="section-title pt-3">
             <h4>Carte interactive</h4>
@@ -124,12 +127,43 @@
 
         <div class="tab-pane fade " id="redaction-panel" role="tabpanel" aria-labelledby="redaction-tab">
           <div class="section-title pt-3">
-            <h4>Rédaction </h4>
-            <h5>Rédiger votre note de synthèse dans cet onglet</h5>
-            <div class="input-group mb-3">
-              <button id="redac-save" class="btn btn-outline-secondary" type="button">Sauvegarder le Document</button>
-            </div>
-            <div id="wysiwyg"></div>
+            <h4>Options </h4>
+            <h5>Choisir un LLM ({{ request.session.selected_llm }})</h5>
+            <form id="llm-form">
+                  <div class="form-check">
+                      <input class="form-check-input" type="radio" name="llm" id="openai" value="openai" {% if request.session.selected_llm == "openai" %}checked{% endif %}> 
+                      <label class="form-check-label" for="openai">
+                          OpenAI GPT-4
+                      </label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="llm" id="other" value="other" {% if request.session.selected_llm == "other" %}checked{% endif %} >
+                    <label class="form-check-label" for="other">
+                        OpenAI GPT-3.5
+                    </label>
+                  </div>
+                  <div class="form-check">
+                        <input class="form-check-input" type="radio" name="llm" id="groq-llama" value="groq-llama" {% if request.session.selected_llm == "groq-llama" %}checked{% endif %} >
+                        <label class="form-check-label" for="groq-llama">
+                          groq/llama-3.1-70b-versatile
+                        </label>
+                    </div>
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="llm" id="groq" value="groq" {% if request.session.selected_llm == "groq" %}checked{% endif %} >
+                        <label class="form-check-label" for="groq">
+                          groq/mixtral-8x7b-32768
+                        </label>
+                    </div>
+
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="llm" id="local" value="local" {% if request.session.selected_llm == "local" %}checked{% endif %} >
+                      <label class="form-check-label" for="local">
+                          Local Mistral
+                      </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3">Valider</button>
+                </form>
           </div>
         </div>
         
@@ -222,7 +256,7 @@
             $(".list-group-item-analyse").removeClass("active")
             $(this).addClass("active")
             dossier_analyse = entry.caption
-            $("#fiches-tab").html("Analyse : " + entry.caption)
+            // $("#fiches-tab").html("Dossier : " + entry.caption)
             $("#fiches-panel-title").html(entry.caption)
             chatapp_ajax_set_analyse(dossier_analyse)
             ongletFichierEmpty()
@@ -244,7 +278,7 @@
             fichier_courant.id = entry.type+"-"+entry.id
             var capt = entry.caption
             if(capt.length > 35){capt = entry.caption.substring(0, 35)+"..."}
-            $("#fichier-tab").html(capt)
+            // $("#fichier-tab").html(capt)
             $("#fichier-panel-title").html(entry.caption)
             chatapp_set_fiches(entry.parent_analyse)
             $("#viewer-iframe").click(function(){
@@ -603,6 +637,22 @@
       question = $('#prompt').val()
       if(question==""){return false}
       analyse_courante.prompt=question
+
+      var conversationArray = [];
+
+      var allConversations = $('#conversation .row');
+      // Sélectionner toutes les paires de question et réponse
+      var lastFiveConversations = allConversations.slice(-5);
+
+      lastFiveConversations.each(function() {
+          var question = $(this).find('.alert-info').text().trim();  // Récupérer le texte de la question
+          var answer = $(this).next('.row').find('.alert-warning').text().trim();  // Récupérer le texte de la réponse
+          // Ajouter à l'array si à la fois question et réponse existent
+          if (question && answer) {
+              conversationArray.push([question, answer]);
+          }
+      });
+      analyse_courante.history = conversationArray
       const qa = newQA();
       $.ajax({
         url: '{% url 'chatapp:chatapp_talk' %}',
@@ -615,7 +665,8 @@
           $('#prompt').val("")
         },
         success: function(response) {
-            qa.append(newPrompt(response.content, response.state))
+            html = marked.parse(response.content)
+            qa.append(newPrompt(html, response.state))
             console.log(response);
         },
         error: function(e) {
@@ -637,7 +688,7 @@
       return $("<div class='row'>"+Col+"<div class='col-11 alert alert-"+className+"'>"+p+"</div></div>")
     }
     $('#prompt-send').click(function(event) {
-      chatapp_talk()
+      chatapp_talk() 
     });
 
     $('#prompt').keypress(function(event) {
@@ -649,6 +700,34 @@
 
 
   });
+
+
+  // gestion du LLM
+  $('#llm-form').on('submit', function(event) {
+    event.preventDefault(); // Empêche la soumission classique du formulaire
+    var selectedLLM = $('input[name="llm"]:checked').val(); // Récupérer la valeur de l'option sélectionnée
+
+    $.ajax({
+      url: '{% url 'chatapp:chatapp_llm' %}',
+      type: 'POST',
+      data: JSON.stringify({name:selectedLLM}),
+      contentType: 'application/json', 
+      beforeSend: function(xhr, settings){
+        xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+        
+      },
+      success: function(response) {
+        $.toast({heading: "Info",text:response.message})
+        console.log(response);
+      },
+      error: function(e) {
+        $.toast({heading: "Info",text:e})
+        console.log(e);
+      }
+    });
+  });
+
+
   // Global functions
   function getCookie(name) {
       const cookieValue = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
@@ -669,6 +748,8 @@
     
   function map_plot_doc(){
     analyse_courante.prompt="map_plot_doc"
+
+    
     $.ajax({
       url: '{% url 'chatapp:chatapp_talk' %}',
       type: 'POST',
@@ -681,11 +762,7 @@
       },
       success: function(response) {
         console.log(response) 
-        
         plot_response(response)
-        
-        
-        
       },
       error: function(e) {
         
@@ -696,13 +773,13 @@
   function plot_response(json_plot){
     var filename = json_plot.filename
     var summary = json_plot.summary
-
+    console.log(json_plot)
     json_plot.infos_geographiques.forEach(function(markerData, index) {
       // console.log(markerData)
       let latlng = [markerData.lat,markerData.lng]
       //let marker = L.marker(latlng).addTo(map);
       let marker = L.marker(latlng)
-      let popup = L.popup().setLatLng(latlng).setContent("<b>"+filename+"</b><br>"+markerData.title+" : "+markerData.contexte+"<br>page : "+markerData.page) // .openOn(map);
+      let popup = L.popup().setLatLng(latlng).setContent("<b>"+markerData.title+"</b><br>"+markerData.contexte+"<br>page : "+markerData.page) // .openOn(map);
       marker.bindPopup(popup)
       marker.on('dragend', function (event) {
         let position = this.getLatLng();

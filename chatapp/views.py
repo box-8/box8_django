@@ -6,12 +6,14 @@ from django.conf import settings
 from django.http import FileResponse, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
-from naldia.naldia import Naldia, Memorizer, Chatter, openai, printc, bcolors
-from naldia.utils_pdf import PdfUtils
-from naldia.models import DPGF, train_model
+
+from box8.ChatAgent import chat_doc
+from box8.utils_pdf import PdfUtils
+
 import markdown
 
 
+"""
 Naldia.async_mode = False
 
 chat = Chatter()
@@ -21,6 +23,7 @@ memorizer = Memorizer()
 # deprecated : async_memorize = sync_to_async(memorizer.memorize)
 async_load = sync_to_async(chat.load)
 async_ask = sync_to_async(chat.ask)
+"""
 
 
 """résumer la fiche référence avec une proposition de localisation géographique dans un json selon le format : {"résumé" : résumé, lat : latitude, lng : longitude}. Ne retourner que le json"""
@@ -122,7 +125,7 @@ def models_dpgf_demo_train(request):
     modelName = data.get('model', '') # question posé
     
     datasetPath = os.path.join(get_absolute_path("sharepoint"), "datasets")
-    response = train_model(datasetPath, modelName)
+    response = "train_model(datasetPath, modelName)"
     """accuracy 
     contente = image base 64"""
     response["model"] = modelName
@@ -133,8 +136,8 @@ def models_dpgf_demo_train(request):
 def models_dpgf_demo_ask(request):
     data = json.loads(request.body.decode('utf-8'))
     prompt = data.get('prompt', '') # question posée
-    model = DPGF(modelName="prix_prediction")
-    prix = model.ask(prompt)
+    #model = DPGF(modelName="prix_prediction")
+    prix = "model.ask(prompt)"
     response = {"content": prompt+" : " + str(prix),"state":"success"}
     return JsonResponse(response)
 
@@ -311,7 +314,7 @@ def chatapp_ajax_fusion_pdf(request):
 def chatapp_delete_file(request):
     if request.method == 'POST':
         data = json.loads(request.body.decode('utf-8'))
-        printc(data,bcolors.FAIL)
+
         
         analyse = data.get('analyse', '')
         fiches = data.get('entries', '')
@@ -357,6 +360,7 @@ def build_talk_response(message,state):
 
 
 
+
 # mémorize document (mode mulit-doc non implémenté)
 async def chatapp_memorize(request):
     destination_dir = await user_destination_dira(request)
@@ -364,7 +368,11 @@ async def chatapp_memorize(request):
     analyse = data.get('analyse', '')
     fiches = data.get('entries', '')
 
-    if len(fiches)<1:
+    
+    response_data = build_talk_response("Attention, veuillez sélectionner un document à mémoriser","warning")
+    return JsonResponse(response_data)
+    
+    """if len(fiches)<1:
         response_data = build_talk_response("Attention, veuillez sélectionner un document à mémoriser","warning")
         return JsonResponse(response_data)
     
@@ -378,80 +386,82 @@ async def chatapp_memorize(request):
         return JsonResponse(build_talk_response(f"Document {fiches[0]} mémorisé avec succès","success"))
     else:
         # printc("Un fichier de mémorisation existe déjà",bcolors.BOLD)
-        return JsonResponse(build_talk_response("Un fichier de mémorisation existe déjà","success"))
+        return JsonResponse(build_talk_response("Un fichier de mémorisation existe déjà","success"))"""
 
 
 # charge en mémoire un nouvel objet mémorizer chargé de vectoriser un nouveau document de manière asynchrone
-async def new_async_memorizer(file_path):
+"""async def new_async_memorizer(file_path):
     newMemo = Memorizer()
     newMemo.setfile(file_path)
     async_memorization = sync_to_async(newMemo.memorize)
-    await async_memorization()
+    await async_memorization()"""
 
+def chatapp_llm(request):
+    if request.method == 'POST':
+        # Récupérer le nom du LLM depuis la requête AJAX
+        data = json.loads(request.body.decode('utf-8'))
+        llm_name = data.get('name', '')
+        # Mettre à jour la session avec le modèle de langage sélectionné
+        request.session['selected_llm'] = llm_name
+        
+        # Vous pouvez également effectuer d'autres actions ici selon le LLM choisi
+
+        # Retourner une réponse JSON pour l'interface utilisateur
+        return JsonResponse({'status': 'success', 'message': f'LLM sélectionné : {llm_name}'})
+    
+    return JsonResponse({'status': 'error', 'message': 'Méthode HTTP non supportée'}, status=405)
 
 # envoie une question sur le(s) documents sélectionnés (uniquement le premier en version demo, le mode multi-doc est à implémenter dans naldia)
 # fait-on appel à des prompts préétablis ?
-async def chatapp_talk(request):
-    destination_dir = await user_destination_dira(request)
+
+def chatapp_talk(request):
+    destination_dir = user_destination_dir(request)
     data = json.loads(request.body.decode('utf-8'))
     analyse = data.get('analyse', '') # nom du dossier d'analyse
     entries = data.get('entries', '') # liste des documents sélectionnés pour la question 
     prompt = data.get('prompt', '') # question posée
-    awaited_result = special_prompts(prompt) # s'agit-t-il d'un prompt préenregistré et quel est le format de réponse attendu (json / texte, ...)
-
+    history = data.get('history', '') # historique de conversation
+    
+    llm = request.session.get('selected_llm', 'openai')
+    print(llm)
+    
+    if not history:
+        history=[]
+    # print(history)
+    
+    # s'agit-t-il d'un prompt préenregistré et quel est le format de réponse attendu (json / texte, ...)
+    awaited_result = special_prompts(prompt) 
+    
     if len(entries)<1:
-        response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","warning")
+        response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
         return JsonResponse(response_data)
     
-    file_path=os.path.join(destination_dir,analyse,entries[0])
-    response ="c'est ici que tout commence" + awaited_result["prompt"]
-    response_data = build_talk_response(response,"warning")
+    # path vers le pdf analysé
+    pdf=os.path.join(destination_dir,analyse,entries[0])
+    
+    if awaited_result["format"] == "text":
+        response,history = chat_doc(pdf=pdf, question = awaited_result["prompt"], history = history, llm=llm)
+        response_data = build_talk_response(response,"warning")
+    
+    elif awaited_result["format"] == "json":
+        try:
+            history=[]
+            response, history = chat_doc(pdf=pdf, question = awaited_result["prompt"], history = history, llm=llm)
+            #donnees_json = json.loads(response) # Analyser la chaîne JSON en un objet Python
+            return JsonResponse(response) # on renvoie la réponse JsonResponse avec les données JSON
+
+        except json.JSONDecodeError as e:
+            # La chaîne n'est pas au format JSON valide
+            return JsonResponse({'error': 'La chaîne n\'est pas au format JSON valide'}, status=400)
     return JsonResponse(response_data)
-    
-    
-    # old way before crewAI
-    try:
-        Memorized = Memorizer(file_path)
-        if Memorized.exist_info:
-            """chat.load(Memorized)
-            response = await async_ask(awaited_result["prompt"])"""
-            response = await new_async_chatter(Memorized, awaited_result["prompt"])
-
-            if awaited_result["format"] == "text":
-                response = f"<div><h5>{entries[0]}</h5>" + format_text(response) + "</div>"
-                response_data = build_talk_response(response,"primary")
-                return JsonResponse(response_data)
-            
-            elif awaited_result["format"] == "json":
-                try:
-                    donnees_json = json.loads(response) # Analyser la chaîne JSON en un objet Python
-                    donnees_json["filename"]=Memorized.get_filename()
-                    donnees_json["summary"]=Memorized.get_summary()
-                    return JsonResponse(donnees_json) # on renvoie la réponse JsonResponse avec les données JSON
-
-                except json.JSONDecodeError as e:
-                    # La chaîne n'est pas au format JSON valide
-                    return JsonResponse({'error': 'La chaîne n\'est pas au format JSON valide'}, status=400)
-                
-        else:
-            response ="le(s) documents avec lesquels vous souhaitez discuter n'est pas mémorisé"
-            response_data = build_talk_response(response,"warning")
-            return JsonResponse(response_data)
-
-    except Exception as e:
-        return JsonResponse(build_talk_response(str(e),"danger")) 
-
-async def new_async_chatter(Memorized,question):
-    newChatter = Chatter(Memorized)
-    # newChatter.load(Memorized)
-    async_chatter_ask = sync_to_async(newChatter.ask)
-    response = await async_chatter_ask(question)
-    return response
 
 # todo => intégrer les prompts préétablis
 # extraction GPS, Diagrammes circulaire, extraction sommaires et informations chiffrées ...
 def special_prompts(prompt):
     if prompt=="map_plot_doc": #extraire des informations de géolocalisation d'un document
+        expectedformat="json"
+        
+    elif prompt=="map_plot_doc_old": #extraire des informations de géolocalisation d'un document
         expectedformat="json"
         prompt = """
 Vous êtes un assistant qui ne répond qu'en JSON.
@@ -503,7 +513,7 @@ def afficher_resume_vectorisation(request, analyse, nom_fichier):
 def afficher_ressources(request, analyse, nom_fichier):
     file_path = os.path.join(settings.BASE_DIR, 'chatapp','sharepoint', request.user.username, analyse, nom_fichier)
     # Vérifiez que le fichier existe avant de le renvoyer
-    printc(file_path,bcolors.FAIL)
+ 
     if os.path.exists(file_path):
         # Ouvrez le fichier PDF et renvoyez-le en tant que réponse HTTP
         with open(file_path, 'rb') as f:

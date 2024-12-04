@@ -13,3 +13,6 @@ tiktoken
 PyPDF2
 markdown
 python-pptx
+
+crewai
+langchain-groq

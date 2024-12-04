@@ -4,7 +4,7 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container-fluid">
         <a class="navbar-brand" href="{% if request.user.is_authenticated %}{% url 'authapp:dashboard' %}{% else %}{% url 'authapp:login' %}{% endif %}">
-            <img src="{% static 'images/logo.png' %}" alt="Description de l'image" style="height:30px"> Engineeria (dev)
+            <img src="{% static 'images/logo.png' %}" alt="Description de l'image" style="height:30px"> Box8 (dev)
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
