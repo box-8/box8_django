@@ -12,6 +12,8 @@ def dashboard(request):
     context = {
         "welcome": "Bienvenue dans votre espace personnel"
     }
+    if 'selected_llm' not in request.session:
+        request.session['selected_llm'] = 'openai'
     return render(request, 'authapp/dashboard.html', context=context)
 
 

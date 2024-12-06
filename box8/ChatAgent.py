@@ -46,12 +46,178 @@ def ChooseLLM(name=""):
     return selected_llm
 
 
-def chat_doc(pdf, question , history=None, llm="openai"):
+
+
+
+
+
+
+
+
+
+def chat_memorize(pdf, question , history=None, llm="openai"):
+    """
+    Extrait le texte de toutes les pages d'un fichier PDF, résume chaque page en tenant compte des précédentes,
+    et enregistre le résumé dans un fichier texte.
     
+    
+
+    :param pdf: Chemin vers le fichier PDF.
+    :param question: Question ou objectif global à considérer dans le résumé.
+    :param history: Historique initial des résumés, par défaut None.
+    :param llm: Modèle de langage à utiliser, par défaut "openai".
+    :return: Résumé complet du document.
+    """
+    # Chemin du fichier de résumé
+    txt_path = pdf + ".txt"
+    
+    
+    texte_pages = []
+    try:
+        # Ouvrir le fichier PDF
+        with open(pdf, 'rb') as pdf_file:
+            # Créer un objet lecteur PDF
+            reader = PyPDF2.PdfReader(pdf_file)
+
+            # Boucler sur toutes les pages du PDF
+            for page_num, page in enumerate(reader.pages):
+                try:
+                    # Extraire le texte de la page et l'ajouter à la liste
+                    texte_pages.append(page.extract_text())
+                except Exception as e:
+                    print(f"Erreur lors de l'extraction du texte de la page {page_num + 1}: {e}")
+
+    except FileNotFoundError:
+        print(f"Le fichier {pdf} est introuvable.")
+    except Exception as e:
+        print(f"Une erreur s'est produite : {e}")
+
+    # analyse json de chaque page
+    history = []
+    resume = ""
+    for i, text in enumerate(texte_pages):
+        # Construire le contexte à partir des trois pages précédentes
+        if i > 0:
+            contexte = "\n\n".join(history[max(0, i-3):i])
+        else:
+            contexte = "Aucun contexte disponible, première page."
+        
+        goal = f"""
+        L'analyste documentaire résume le texte de la page {(i +1)} dans le contexte des pages précédentes : 
+        Page : 
+        {text}
+        
+        Contexte : 
+        {contexte}
+        """
+        
+        analyste = Agent(
+            role="Analyste documentaire",
+            goal=goal,
+            allow_delegation=False,
+            verbose=True,
+            backstory=(
+                """
+                Lecteur chevronné, l'analyste effectue un résumé de texte.
+                """
+            ),
+            llm = ChooseLLM(llm)
+        )
+        repondre = Task(
+            description="Résumer le texte de la page.",
+            expected_output="Un résumé dans le style du texte, dans la mmême langue, utilisant le format markdown pour la mise en forme.",
+            agent=analyste,
+        )
+        
+        crew = Crew(
+            agents=[analyste],
+            tasks=[repondre],
+            process=Process.sequential  # Exécution séquentielle des tâches
+        )
+        
+        try:
+            result = crew.kickoff()
+            history.append(result.raw)  # Ajouter le résumé actuel à l'historique
+            resume += result.raw + "\n\n"
+        except Exception as e:
+            print(f"Erreur lors du traitement de la page {i + 1} : {e}")
+    
+    # Enregistrer le résumé dans un fichier texte
+    try:
+        with open(txt_path, "w", encoding="utf-8") as file:
+            file.write(resume)
+        print(f"Résumé enregistré dans le fichier : {txt_path}")
+    except Exception as e:
+        print(f"Erreur lors de l'enregistrement du résumé : {e}")
+    return resume
+
+
+
+
+
+
+
+
+def chat_enhance(pdf, question , history=None, llm="openai"): 
+    goal=f"""
+        L'analyste complète le texte initial en répondant à la question posée :
+        Texte initial :
+        {history}
+
+        Nouvelle question :
+        {question}
+        """
+
+    analyste = Agent(
+        role="Analyste documentaire",
+        goal=goal,
+        allow_delegation=False,
+        verbose=True,
+        backstory=(
+            """
+            Lecteur chevronné, l'analyste recherche et extrait les données pertinentes du document ou de ses propres connaissances
+            pour améliorer la rédaction du texte initial et en développer le contenu.
+            """
+        ),
+        tools=[PDFSearchTool(pdf=pdf)],
+        llm = ChooseLLM(llm)
+    )
+    
+    description=f"""Reprendre l'intégralité du texte initial en y ajoutant les paragraphes nécessaires pour l'approfondir par une réponse à la question posée et en utilisant 
+        les informations du document analysé.
+        Texte initial : 
+        {history}"""
+    
+    repondre = Task(
+        description=description,
+        expected_output="Le texte initial amélioré, utilisant le format markdown pour la mise en forme. formuler les paragraphes supplémentaires dans la langue de la question",
+        agent=analyste,
+    )
+    
+    crew = Crew(
+        agents=[analyste],
+        tasks=[repondre],
+        process=Process.sequential  # Exécution séquentielle des tâches
+    )
+    try : 
+        result = crew.kickoff()
+    except Exception as e:
+        result = e
+    return result.raw
+
+
+
+
+
+
+
+
+
+
+
+def chat_doc(pdf, question , history=None, llm="openai"):    
     if question=="map_plot_doc":
         return map_plot_doc(pdf, question , history=None, llm="openai")
-    
-    
     
     if history is None:
         history = []
@@ -108,6 +274,12 @@ def chat_doc(pdf, question , history=None, llm="openai"):
 
 
 
+
+
+
+
+
+
 """MAPS FUNCTIONS"""
 def fusionner_infos_geographiques(tableau):
     # Initialiser le tableau consolidé pour les informations géographiques
@@ -123,6 +295,8 @@ def fusionner_infos_geographiques(tableau):
         "infos_geographiques": infos_geographiques_fusionnees
     }
     return resultat
+
+
 
 
 
@@ -211,58 +385,6 @@ Remplir la liste des informations géographiques dans un tableau respectant stri
     return chat_doc(pdf, question , history, llm)
 
     
-
-def CV(file="", offre_emploi=""):
-    candidat = Agent(
-        role="Candidat à l'offre d'emploi",
-        goal="Le candidat cherche à répondre au mieux possible à l'offre d'emploi",
-        allow_delegation=False,
-        verbose=True,
-        backstory=(
-            """
-            Fort de son expérience, le candidat recherche et extrait les données pertinentes de son curriculum vitae 
-            pour répondre le plus précisémment possible aux attentes du recruteur.
-            """
-        ),
-        tools=[PDFSearchTool(pdf=file)],
-        llm = ChooseLLM()
-    )
-
-    recruteur = Agent(
-        role="Recruteur",
-        goal="Le recruteur recherche un candidat dont le profil correspond au poste dans l'entreprise",
-        allow_delegation=False,
-        verbose=True,
-        backstory=(
-            f"""
-            Le recruteur interroge le candidat de manière à contrôler l'adéquation du CV du candidat pour le poste proposé par l'entreprise.
-            Il rédige un mémo des forces et faiblesses du profil pour le poste.
-            """
-        ),
-        llm = ChooseLLM()
-    )
-
-
-    entretien_recrutement = Task(
-        description="interroger le candidat sur la pertinence de son CV lors de l'entretien d'embauche.",
-        expected_output=f"""
-        Un mémo à l'attention de la direction RH de l'entreprise détaillant les forces et les faiblesses du candidat pour le poste.
-        Le poste est le suivant : 
-        {offre_emploi}
-        
-        Le mémo comporte 4 sections : 
-        1- les coordonnées du candidat
-        2- les forces
-        3- les faiblesses 
-        4- une synthèse
-        """,
-        agent=candidat,
-    )
-            
-    crew = Crew(
-        agents=[recruteur,candidat],
-        tasks=[entretien_recrutement],
-        process=Process.sequential  # Exécution séquentielle des tâches
-    )
-    result = crew.kickoff()
-    return result.raw
+    
+    
+    

@@ -7,7 +7,7 @@ from django.http import FileResponse, HttpResponse, HttpResponseForbidden, JsonR
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
-from box8.ChatAgent import chat_doc
+from box8.ChatAgent import chat_doc, chat_enhance, chat_memorize
 from box8.utils_pdf import PdfUtils
 
 import markdown
@@ -177,7 +177,7 @@ def list_analyse_files(destination_dir, analyse):
     for i, caption in enumerate(files):
         # on évite les sous dossiers !
         file_path = os.path.join(destination_dir, caption)
-        if os.path.isfile(file_path) and not (caption.endswith(".json") or caption.endswith(".json.txt")):
+        if os.path.isfile(file_path) and not (caption.endswith(".json") or caption.endswith(".txt")):
             file_dict = {"id": str(i + 1), "caption": caption, "type":"document", "parent_analyse":analyse}
             json_filename = caption + ".json"
             if os.path.isfile(os.path.join(destination_dir, json_filename)):
@@ -361,32 +361,12 @@ def build_talk_response(message,state):
 
 
 
-# mémorize document (mode mulit-doc non implémenté)
-async def chatapp_memorize(request):
-    destination_dir = await user_destination_dira(request)
-    data = json.loads(request.body.decode('utf-8'))
-    analyse = data.get('analyse', '')
-    fiches = data.get('entries', '')
+
 
     
     response_data = build_talk_response("Attention, veuillez sélectionner un document à mémoriser","warning")
     return JsonResponse(response_data)
     
-    """if len(fiches)<1:
-        response_data = build_talk_response("Attention, veuillez sélectionner un document à mémoriser","warning")
-        return JsonResponse(response_data)
-    
-    # @todo implémenter sur plusieurs fichiers, pas que sur le premier ...
-    file_path=os.path.join(destination_dir,analyse,fiches[0])
-    
-    memorizer.setfile(file_path)
-    if not memorizer.exist_info:
-        # déprecated : await async_memorize()
-        await new_async_memorizer(file_path)
-        return JsonResponse(build_talk_response(f"Document {fiches[0]} mémorisé avec succès","success"))
-    else:
-        # printc("Un fichier de mémorisation existe déjà",bcolors.BOLD)
-        return JsonResponse(build_talk_response("Un fichier de mémorisation existe déjà","success"))"""
 
 
 # charge en mémoire un nouvel objet mémorizer chargé de vectoriser un nouveau document de manière asynchrone
@@ -400,7 +380,7 @@ def chatapp_llm(request):
     if request.method == 'POST':
         # Récupérer le nom du LLM depuis la requête AJAX
         data = json.loads(request.body.decode('utf-8'))
-        llm_name = data.get('name', '')
+        llm_name = data.get('name', 'openai')
         # Mettre à jour la session avec le modèle de langage sélectionné
         request.session['selected_llm'] = llm_name
         
@@ -455,6 +435,33 @@ def chatapp_talk(request):
             return JsonResponse({'error': 'La chaîne n\'est pas au format JSON valide'}, status=400)
     return JsonResponse(response_data)
 
+
+
+def chatapp_enhance(request):
+    destination_dir = user_destination_dir(request)
+    data = json.loads(request.body.decode('utf-8'))
+    analyse = data.get('analyse', '') # nom du dossier d'analyse
+    entries = data.get('entries', '') # liste des documents sélectionnés pour la question 
+    prompt = data.get('prompt', '') # question posée
+    history = data.get('history', '') # historique de conversation
+    
+    llm = request.session.get('selected_llm', 'openai')
+    print(history)
+    
+    if len(entries)<1:
+        response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
+        return JsonResponse(response_data)
+    
+    # path vers le pdf analysé
+    pdf=os.path.join(destination_dir,analyse,entries[0])
+    response = chat_enhance(pdf=pdf, question = prompt, history = history, llm=llm)
+    response_data = build_talk_response(response,"warning")
+    return JsonResponse(response_data)
+
+
+
+
+
 # todo => intégrer les prompts préétablis
 # extraction GPS, Diagrammes circulaire, extraction sommaires et informations chiffrées ...
 def special_prompts(prompt):
@@ -492,9 +499,44 @@ def format_text(text):
     return markdown.markdown(text)
 
 
+
+
+
+
+
+
+
+
+
+
+# mémorize document (mode mulit-doc non implémenté)
+def chatapp_memorize(request):
+    destination_dir = user_destination_dir(request)
+    data = json.loads(request.body.decode('utf-8'))
+    analyse = data.get('analyse', '') # nom du dossier d'analyse
+    entries = data.get('entries', '') # liste des documents sélectionnés pour la question 
+    prompt = data.get('prompt', '') # question posée
+    history = data.get('history', '') # historique de conversation
+    llm = request.session.get('selected_llm', 'openai')
+        
+    # return JsonResponse(build_talk_response("résumé","danger"))
+
+    if len(entries)<1:
+        response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
+        return JsonResponse(response_data)
+    
+    # path vers le pdf analysé
+    pdf=os.path.join(destination_dir,analyse,entries[0])
+    response = chat_memorize(pdf=pdf, question = prompt, history = history, llm=llm)
+    response_data = build_talk_response(response,"warning")
+    return JsonResponse(response_data)
+
+
+
+
 # retour le cpntenu du ficher de vectorisation pour l'afficher dans le navigateur
 def afficher_resume_vectorisation(request, analyse, nom_fichier):
-    file_path = os.path.join(settings.BASE_DIR, 'chatapp','sharepoint', request.user.username, analyse, nom_fichier+".json.txt")
+    file_path = os.path.join(settings.BASE_DIR, 'chatapp','sharepoint', request.user.username, analyse, nom_fichier+".txt")
     # Vérifiez que le fichier existe avant de le renvoyer
     # printc(file_path,bcolors.FAIL)
 
@@ -506,8 +548,12 @@ def afficher_resume_vectorisation(request, analyse, nom_fichier):
         response_data = build_talk_response(format_text(response_data),"success")
         return JsonResponse(response_data)
     else:
-        response_data = build_talk_response("le fichier n'existe pas","warning")
+        response_data = build_talk_response("le résumé du fichier n'existe pas, lancez la procédure","warning")
         return JsonResponse(response_data)
+
+
+
+
 
 # non utilisé, permet de renvoyer le fichier sélectionner
 def afficher_ressources(request, analyse, nom_fichier):
