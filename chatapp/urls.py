@@ -13,6 +13,7 @@ from .views import (chatapp_dashboard,
                     chatapp_ajax_delete_analyse, 
                     chatapp_talk,
                     chatapp_enhance,
+                    chatapp_word,
                     chatapp_llm,
                     afficher_ressources, 
                     afficher_resume_vectorisation,
@@ -38,6 +39,8 @@ urlpatterns = [
     path('chatapp/memorize/', chatapp_memorize, name="chatapp_memorize"), # mémorise un document pour pouvoir chatter avec 
     path('chatapp/talk/', chatapp_talk, name="chatapp_talk"), # envoi une question sur le document mémorisé en cours (multi document non implémenté)
     path('chatapp/enhance/', chatapp_enhance, name="chatapp_enhance"), # envoi une question sur le document mémorisé en cours (multi document non implémenté)
+    path('chatapp/word/', chatapp_word, name="chatapp_word"), # envoi une question sur le document mémorisé en cours (multi document non implémenté)
+    
     path('chatapp/llm/', chatapp_llm, name="chatapp_llm"), # permet de choisir le LLM
     
     path('chatapp/info/<str:analyse>/<str:nom_fichier>', afficher_resume_vectorisation, name='afficher_resume_vectorisation'), # retourne le résumé de la  vectorisé du document mémorisé

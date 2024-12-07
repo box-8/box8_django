@@ -7,6 +7,7 @@ from django.http import FileResponse, HttpResponse, HttpResponseForbidden, JsonR
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
+from lorem_text import lorem
 from box8.ChatAgent import chat_doc, chat_enhance, chat_memorize
 from box8.utils_pdf import PdfUtils
 
@@ -363,33 +364,38 @@ def build_talk_response(message,state):
 
 
 
-    
-    response_data = build_talk_response("Attention, veuillez sélectionner un document à mémoriser","warning")
-    return JsonResponse(response_data)
-    
 
 
-# charge en mémoire un nouvel objet mémorizer chargé de vectoriser un nouveau document de manière asynchrone
-"""async def new_async_memorizer(file_path):
-    newMemo = Memorizer()
-    newMemo.setfile(file_path)
-    async_memorization = sync_to_async(newMemo.memorize)
-    await async_memorization()"""
+
+#############################################################################
+"""CHAT LLM FUNCTIONS """
+#############################################################################
+
 
 def chatapp_llm(request):
     if request.method == 'POST':
         # Récupérer le nom du LLM depuis la requête AJAX
         data = json.loads(request.body.decode('utf-8'))
         llm_name = data.get('name', 'openai')
+        
+        if llm_name == "debug":
+            request.session['llm_debug'] = True
+        else : 
+            request.session['llm_debug'] = False
         # Mettre à jour la session avec le modèle de langage sélectionné
         request.session['selected_llm'] = llm_name
         
-        # Vous pouvez également effectuer d'autres actions ici selon le LLM choisi
 
         # Retourner une réponse JSON pour l'interface utilisateur
         return JsonResponse({'status': 'success', 'message': f'LLM sélectionné : {llm_name}'})
     
     return JsonResponse({'status': 'error', 'message': 'Méthode HTTP non supportée'}, status=405)
+
+
+
+
+
+
 
 # envoie une question sur le(s) documents sélectionnés (uniquement le premier en version demo, le mode multi-doc est à implémenter dans naldia)
 # fait-on appel à des prompts préétablis ?
@@ -401,9 +407,13 @@ def chatapp_talk(request):
     entries = data.get('entries', '') # liste des documents sélectionnés pour la question 
     prompt = data.get('prompt', '') # question posée
     history = data.get('history', '') # historique de conversation
-    
     llm = request.session.get('selected_llm', 'openai')
     print(llm)
+    
+    if request.session['llm_debug']:
+        prompt = '\n\n'.join([lorem.paragraph() for _ in range(3)])
+        response_data = build_talk_response(f"chatapp_talk : réponse à la question : {prompt}","warning")
+        return JsonResponse(response_data)
     
     if not history:
         history=[]
@@ -437,6 +447,14 @@ def chatapp_talk(request):
 
 
 
+
+
+
+
+
+
+
+
 def chatapp_enhance(request):
     destination_dir = user_destination_dir(request)
     data = json.loads(request.body.decode('utf-8'))
@@ -444,9 +462,13 @@ def chatapp_enhance(request):
     entries = data.get('entries', '') # liste des documents sélectionnés pour la question 
     prompt = data.get('prompt', '') # question posée
     history = data.get('history', '') # historique de conversation
-    
     llm = request.session.get('selected_llm', 'openai')
     print(history)
+    if request.session['llm_debug']:
+        prompt = '\n\n'.join([lorem.paragraph() for _ in range(3)])
+        response_data = build_talk_response(f"chatapp_enhance : réponse à la question : {prompt}","warning")
+        return JsonResponse(response_data)
+        
     
     if len(entries)<1:
         response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
@@ -460,33 +482,49 @@ def chatapp_enhance(request):
 
 
 
+from docx import Document
+def generer_document_word(donnees, nom_fichier="document_genere.docx"):
+    # Crée un nouveau document Word
+    doc = Document()
+    
+    # Boucle à travers chaque entrée du tableau pour ajouter des chapitres
+    for entree in donnees:
+        titre, contenu = entree  # Décompose l'entrée en titre et contenu
+        # Ajoute le titre comme un en-tête de niveau 1
+        doc.add_heading(titre, level=1)
+        # Ajoute le contenu comme un paragraphe
+        doc.add_paragraph(contenu)
+    # Enregistre le document avec le nom spécifié
+    doc.save(nom_fichier)
+    print(f"Document généré avec succès : {nom_fichier}")
+
+def chatapp_word(request):
+    destination_dir = user_destination_dir(request)
+    data = json.loads(request.body.decode('utf-8'))
+    analyse = data.get('analyse', '') # nom du dossier d'analyse
+    entries = data.get('entries', '') # liste des documents sélectionnés pour la question 
+    prompt = data.get('prompt', '') # question posée
+    history = data.get('history', '') # historique de conversation
+    llm = request.session.get('selected_llm', 'openai')
+    if len(entries)<1:
+        response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
+        return JsonResponse(response_data)
+    pdf=os.path.join(destination_dir,analyse,prompt)
+    print(history)
+    generer_document_word(history, f"{pdf}.docx")
+    response_data = build_talk_response("Le word a été généré","info")
+    return JsonResponse(response_data)
+
+
+
 
 
 # todo => intégrer les prompts préétablis
 # extraction GPS, Diagrammes circulaire, extraction sommaires et informations chiffrées ...
 def special_prompts(prompt):
-    if prompt=="map_plot_doc": #extraire des informations de géolocalisation d'un document
+    if prompt.startswith("map_plot_"): 
+        #extraire des informations de géolocalisation d'un document
         expectedformat="json"
-        
-    elif prompt=="map_plot_doc_old": #extraire des informations de géolocalisation d'un document
-        expectedformat="json"
-        prompt = """
-Vous êtes un assistant qui ne répond qu'en JSON.
-Extraire les informations géographiques présentes dans le document (pays, villes, adresses). 15 au maximum.
-Pour chacune d'elle décrire son contexte et affecter une position GPS VALIDE en degrés décimaux, en lattitude et longitude, la plus précise possible.
-Remplir la liste des informations géographiques dans un tableau respectant strictement le format JSON suivant pour chaque réponse :
-{
-    "infos_geographiques":[
-        {
-            "title" : description de l'information géographique retenue,
-            "contexte" : contexte pour lequelle l'information géographique est retenue (personne, activité, entreprise, tâche),
-            "page": page où se trouve l'information,
-            "lat": latitude du lieu,
-            "lng": longitude du lieu
-        },
-    ]
-}
-        """
     else:
         expectedformat="text"
     
@@ -502,13 +540,6 @@ def format_text(text):
 
 
 
-
-
-
-
-
-
-
 # mémorize document (mode mulit-doc non implémenté)
 def chatapp_memorize(request):
     destination_dir = user_destination_dir(request)
@@ -518,8 +549,12 @@ def chatapp_memorize(request):
     prompt = data.get('prompt', '') # question posée
     history = data.get('history', '') # historique de conversation
     llm = request.session.get('selected_llm', 'openai')
-        
-    # return JsonResponse(build_talk_response("résumé","danger"))
+
+    print(llm)
+    if request.session['llm_debug']:
+        prompt = '\n\n'.join([lorem.paragraph() for _ in range(3)])
+        response_data = build_talk_response(f"chatapp_memorize : réponse à la question : {prompt}","warning")
+        return JsonResponse(response_data)
 
     if len(entries)<1:
         response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")

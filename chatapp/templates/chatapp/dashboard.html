@@ -56,7 +56,13 @@
         <div class="tab-pane fade show active" id="chat-panel" role="tabpanel" aria-labelledby="chat-tab">
           <div class="section-title pt-3">
             <h4 id="chat-panel-title">Conversation</h4>
-            <h5>Historique des conversations</h5>
+            <button id="prompt-word" class="btn btn-outline-secondary" type="button">Générer le Word</button>
+            <br/>
+            <label>
+              <input type="checkbox" name="prompt-on-sumup" id="prompt-on-sumup" value="sumup"> Utiliser le résumé au lieu du fichier
+            </label>
+            
+            <h5>Historique des conversations {% if request.session.llm_debug %}(Debug){% endif %}</h5>
             <div class="row">
               <div class="col-8">
                 <div class="input-group mb-3">
@@ -119,6 +125,10 @@
             <h5>Les informations géographiques s'affichent ici</h5>
             <div class="input-group mb-3">
               <button id="plot-doc" class="btn btn-outline-secondary" type="button">Afficher le Document</button>
+              <button id="plot-sumup" class="btn btn-outline-secondary" type="button">Afficher le Résumé</button>
+            </div>
+            <div class="input-group mb-3">
+              <button id="plot-clear" class="btn btn-outline-secondary" type="button">Reset</button>
               <button id="map-mode" class="btn btn-outline-secondary" type="button">mode consultation</button>
             </div>
             <div id="map"></div>
@@ -150,11 +160,18 @@
                     </div>
 
                     <div class="form-check">
-                        <input class="form-check-input" type="radio" name="llm" id="groq" value="groq" {% if request.session.selected_llm == "groq" %}checked{% endif %} >
-                        <label class="form-check-label" for="groq">
-                          groq/mixtral-8x7b-32768
-                        </label>
-                    </div>
+                      <input class="form-check-input" type="radio" name="llm" id="groq" value="groq" {% if request.session.selected_llm == "groq" %}checked{% endif %} >
+                      <label class="form-check-label" for="groq">
+                        groq/mixtral-8x7b-32768
+                      </label>
+                  </div>
+
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="llm" id="mistral" value="mistral" {% if request.session.selected_llm == "mistral" %}checked{% endif %} >
+                    <label class="form-check-label" for="mistral">
+                      mistral/mistral-medium-latest
+                    </label>
+                </div>
 
                     <div class="form-check">
                       <input class="form-check-input" type="radio" name="llm" id="local" value="local" {% if request.session.selected_llm == "local" %}checked{% endif %} >
@@ -162,6 +179,14 @@
                           Local Mistral
                       </label>
                     </div>
+
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="llm" id="debug" value="debug" {% if request.session.selected_llm == "debug" %}checked{% endif %} >
+                      <label class="form-check-label" for="debug">
+                        debug (no LLM)
+                      </label>
+                  </div>
+
                     <button type="submit" class="btn btn-primary mt-3">Valider</button>
                 </form>
           </div>
@@ -632,6 +657,40 @@
     }
 
     
+    $("#prompt-word").click(function(){
+      var allConversations = $('#conversation .row');
+      var conversationArray = [];
+      allConversations.each(function() {
+          var question = $(this).find('.alert-info').text().trim();  // Récupérer le texte de la question
+          var answer = $(this).next('.row').find('.alert-danger').text().trim();  // Récupérer le texte de la réponse
+          if (question && answer) {
+              conversationArray.push([question, answer]);
+          }
+      });
+      analyse_courante.history = conversationArray
+      let nom = prompt("Entrez le nom du fichier que vous souhaiter générer :", "Fichier Word");
+
+      analyse_courante.prompt=nom
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_word' %}',
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          
+        },
+        success: function(response) {
+            console.log(response);
+            $.toast({heading: "Info",text:response.content})
+        },
+        error: function(e) {
+            console.log(e);
+        }
+      });
+    })
+
+
     /* Fonctionnalités de chat */
     function chatapp_talk(){
       question = $('#prompt').val()
@@ -694,12 +753,14 @@
         contentType: 'application/json', 
         beforeSend: function(xhr, settings){
           xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          divQuestion.val("")
+          divWarning.parent().append($("<p class='alert alert-secondary' >"+question+"</p>"))
         },
         success: function(response) {
             html = marked.parse(response.content)
             divWarning.html(html)
-            divWarning.parent().append(newPrompt(question, className="success"))
-            divQuestion.val("")
+            
+            
             console.log(response);
         },
         error: function(e) {
@@ -717,32 +778,37 @@
     }
     function newPrompt(p, className="success"){
 
-      component = $("<div class='row'></div>")
-      component_text = $("<div class='col-11 alert alert-"+className+"'>"+p+"</div>")
-      component_toolbar = $("<div class='col-12 input-group'></div>")
+      var component = $("<div class='row'></div>")
+      var component_text = $("<div class='col-11 alert alert-"+className+"'>"+p+"</div>")
+      var component_toolbar = $("<div class='col-12 input-group'></div>")
       component.prepend(component_text)
       component.append(component_toolbar)
       
-      Col=$("<div class='col-1'></div>")
+      var Col=$("<div class='col-1'></div>")
       
 
       if (className!="info"){ // llm
-        component_tool = $("<input type='text' class='form-control'></input>")
+        var component_tool = $("<input type='text' class='form-control'></input>")
         component_tool.keypress(function(event) {
           if (event.which === 13) {
             event.preventDefault();
             chatapp_enhance($(this), component_text);
           }
         });
-        component_tool1 = $("<button class='btn btn-outline-secondary'>Delete</button>")
+        
+        var component_tool0 = $("<button class='btn btn-outline-secondary'>Send</button>")
+        component_tool0.click(function(event) {
+          chatapp_enhance($(this), component_text);
+        });
+        var component_tool1 = $("<button class='btn btn-outline-secondary'>Delete</button>")
         component_tool1.click(function(event) {
           component.parent().remove()
         });
-        component_tool2 = $("<button class='btn btn-outline-secondary'>Select</button>")
+        var component_tool2 = $("<button class='btn btn-outline-secondary'>Select</button>")
         component_tool2.click(function(event) {
           component_text.toggleClass("alert-info").toggleClass("alert-danger");
         });
-        component_toolbar.prepend(component_tool, component_tool1,component_tool2)
+        component_toolbar.prepend(component_tool, component_tool0, component_tool1,component_tool2)
 
         component.append(Col)
       }else{
@@ -817,9 +883,8 @@
     var markers = []
     var markerGroup = new L.featureGroup()
     
-  function map_plot_doc(){
-    analyse_courante.prompt="map_plot_doc"
-
+  function map_plot_doc(filetype){
+    analyse_courante.prompt="map_plot_"+filetype
     
     $.ajax({
       url: '{% url 'chatapp:chatapp_talk' %}',
@@ -863,12 +928,25 @@
     map.addLayer(markerGroup);
     map.fitBounds(markerGroup.getBounds());
   }
-  
+  function clearMarkers() {
+    if (markerGroup) {
+        markerGroup.clearLayers();
+    }
+    $.toast({heading: "Info", text: "Tous les marqueurs ont été supprimés.", position: "top-right", icon: "info", stack: true});
+}
+
     $(document).ready(function () {
 
-      $("#plot-doc").on("click", function() {
-        map_plot_doc()
+      $("#plot-clear").on("click", function() {
+        clearMarkers()
       });
+      $("#plot-doc").on("click", function() {
+        map_plot_doc("pdf")
+      });
+      $("#plot-sumup").on("click", function() {
+        map_plot_doc("txt")
+      });
+      
       $("#carte-tab").on("click", function() {
         var btn = $(this)
         if (btn.hasClass("text-info")){

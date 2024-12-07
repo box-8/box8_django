@@ -16,3 +16,5 @@ python-pptx
 
 crewai
 langchain-groq
+python-docx
+lorem-text

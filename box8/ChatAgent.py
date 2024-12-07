@@ -4,7 +4,7 @@ import tempfile
 import PyPDF2
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI, OpenAI
-from crewai import Agent, Crew, Process, Task
+from crewai import Agent, Crew, Process, Task, LLM
 from crewai_tools import PDFSearchTool
 
 
@@ -12,38 +12,54 @@ from crewai_tools import PDFSearchTool
 
 def ChooseLLM(name=""):
     
-    if name =="" : name = "openai"
+    if name == "" : 
+        name = "openai"
 
     if name=="local":
-        selected_llm = ChatOpenAI(
-            model="mistral-7b-local",
-            base_url="http://localhost:1552/v1"
-        )
-    elif name=="groq":
-        API_KEY = os.getenv("GROQ_API_KEY")
-        selected_llm = ChatGroq(temperature=0, groq_api_key=API_KEY, model_name="groq/mixtral-8x7b-32768")
+        # selected_llm = ChatOpenAI(model="mistral-7b-local", base_url="http://localhost:1552/v1")
         
-    elif name=="groq-llama":
-        API_KEY = os.getenv("GROQ_API_KEY")
-        selected_llm = ChatGroq(temperature=0, groq_api_key=API_KEY, model_name="groq/llama-3.1-70b-versatile")
-    
-    elif name=="openai":
-        API_KEY = os.getenv("OPENAI_API_KEY")
-        selected_llm = ChatOpenAI(
-            temperature=0.7,
-            openai_api_base="https://api.openai.com/v1",  # Le point de terminaison de l'API OpenAI
-            openai_api_key=API_KEY ,  # Remplace par ta clé API OpenAI
-            model_name="gpt-4",  # Utilise GPT-4 par exemple, ou un autre modèle supporté
-        )
-    else:
-        API_KEY = os.getenv("OPENAI_API_KEY")
-        selected_llm = ChatOpenAI(
-            temperature=0.7,
-            openai_api_base="https://api.openai.com/v1",  # Le point de terminaison de l'API OpenAI
-            openai_api_key=API_KEY ,  # Remplace par ta clé API OpenAI
+        selected_llm = LLM(
+            model="ollama/mistral",
+            base_url="http://localhost:11434"
         )
 
+    elif name=="mistral":
+        # API_KEY = os.getenv("MISTRAL_API_KEY")
+        # selected_llm = ChatGroq(temperature=0, groq_api_key=API_KEY, model_name="groq/mixtral-8x7b-32768")
+        selected_llm = LLM(
+            model="mistral/mistral-medium-latest",
+            temperature=0.2
+        )
+        
+    elif name=="groq":
+        # API_KEY = os.getenv("GROQ_API_KEY")
+        # selected_llm = ChatGroq(temperature=0, groq_api_key=API_KEY, model_name="groq/mixtral-8x7b-32768")
+        selected_llm = LLM(
+            model="groq/mixtral-8x7b-32768",
+            temperature=0.2
+        )
+    
+    elif name=="groq-llama":
+        # API_KEY = os.getenv("GROQ_API_KEY")
+        # selected_llm = ChatGroq(temperature=0, groq_api_key=API_KEY, model_name="groq/llama-3.1-70b-versatile")
+        selected_llm = LLM(
+            model="groq/llama-3.1-70b-versatile",
+            temperature=0.2
+        )
+    
+    elif name=="openai":
+        selected_llm = LLM(
+            model="gpt-4",
+            temperature=0.2
+        )
+
+    else:
+        selected_llm = LLM(
+            model="gpt-3.5-turbo",
+            temperature=0.2
+        )
     return selected_llm
+
 
 
 
@@ -95,37 +111,45 @@ def chat_memorize(pdf, question , history=None, llm="openai"):
     # analyse json de chaque page
     history = []
     resume = ""
+    goal = f"""
+        L'analyste documentaire résume un document page par page en se rappellant des pages précédentes. 
+        """
+        
+    analyste = Agent(
+        role="Analyste documentaire",
+        goal=goal,
+        allow_delegation=False,
+        verbose=True,
+        backstory=(
+            """
+            Lecteur chevronné, l'analyste effectue un résumé condensé de la page courante.
+            """
+        ),
+        llm = ChooseLLM(llm)
+    )
     for i, text in enumerate(texte_pages):
+        if len(text) < 400:
+            continue
         # Construire le contexte à partir des trois pages précédentes
         if i > 0:
             contexte = "\n\n".join(history[max(0, i-3):i])
         else:
             contexte = "Aucun contexte disponible, première page."
         
-        goal = f"""
-        L'analyste documentaire résume le texte de la page {(i +1)} dans le contexte des pages précédentes : 
-        Page : 
-        {text}
         
-        Contexte : 
-        {contexte}
+        analyste.backstory=f"""
+            Lecteur chevronné, l'analyste effectue un résumé condensé de la page courante, dans le contexte des pages précédentes.
+            Contexte précédent : 
+            {contexte}
         """
-        
-        analyste = Agent(
-            role="Analyste documentaire",
-            goal=goal,
-            allow_delegation=False,
-            verbose=True,
-            backstory=(
-                """
-                Lecteur chevronné, l'analyste effectue un résumé de texte.
-                """
-            ),
-            llm = ChooseLLM(llm)
-        )
         repondre = Task(
-            description="Résumer le texte de la page.",
-            expected_output="Un résumé dans le style du texte, dans la mmême langue, utilisant le format markdown pour la mise en forme.",
+            description=f"""
+            Condenser le texte de la page {(i +1)}.
+            Page {(i +1)} : 
+            {text}
+            Eviter les tournures comme 'dans la continuité de la situation précédente' ou 'dans le contexte de la page précédente' pour une lecture fluide.
+            """,
+            expected_output=f"Un condensé en français de la page {(i +1)} dans un style concis, en utilisant le format markdown pour la mise en forme.",
             agent=analyste,
         )
         
@@ -167,7 +191,7 @@ def chat_enhance(pdf, question , history=None, llm="openai"):
         Nouvelle question :
         {question}
         """
-
+    
     analyste = Agent(
         role="Analyste documentaire",
         goal=goal,
@@ -216,8 +240,10 @@ def chat_enhance(pdf, question , history=None, llm="openai"):
 
 
 def chat_doc(pdf, question , history=None, llm="openai"):    
-    if question=="map_plot_doc":
+    if question=="map_plot_pdf":
         return map_plot_doc(pdf, question , history=None, llm="openai")
+    if question=="map_plot_txt":
+        return map_plot_doc(pdf+".txt", question , history=None, llm="openai")
     
     if history is None:
         history = []
@@ -308,24 +334,31 @@ def map_plot_doc(pdf, question , history=None, llm="openai"):
     :return: Une liste contenant le texte de chaque page.
     """
     texte_pages = []
-    try:
-        # Ouvrir le fichier PDF
-        with open(pdf, 'rb') as pdf_file:
-            # Créer un objet lecteur PDF
-            reader = PyPDF2.PdfReader(pdf_file)
+    
+    if pdf.endswith(".txt"):
+        with open(pdf, "r", encoding="utf-8") as fichier:
+            contenu = fichier.read()
+            texte_pages.append(contenu)
+    else:
+        
+        try:
+            # Ouvrir le fichier PDF
+            with open(pdf, 'rb') as pdf_file:
+                # Créer un objet lecteur PDF
+                reader = PyPDF2.PdfReader(pdf_file)
 
-            # Boucler sur toutes les pages du PDF
-            for page_num, page in enumerate(reader.pages):
-                try:
-                    # Extraire le texte de la page et l'ajouter à la liste
-                    texte_pages.append(page.extract_text())
-                except Exception as e:
-                    print(f"Erreur lors de l'extraction du texte de la page {page_num + 1}: {e}")
+                # Boucler sur toutes les pages du PDF
+                for page_num, page in enumerate(reader.pages):
+                    try:
+                        # Extraire le texte de la page et l'ajouter à la liste
+                        texte_pages.append(page.extract_text())
+                    except Exception as e:
+                        print(f"Erreur lors de l'extraction du texte de la page {page_num + 1}: {e}")
 
-    except FileNotFoundError:
-        print(f"Le fichier {pdf} est introuvable.")
-    except Exception as e:
-        print(f"Une erreur s'est produite : {e}")
+        except FileNotFoundError:
+            print(f"Le fichier {pdf} est introuvable.")
+        except Exception as e:
+            print(f"Une erreur s'est produite : {e}")
 
     # analyse json de chaque page
     history = []
@@ -388,3 +421,44 @@ Remplir la liste des informations géographiques dans un tableau respectant stri
     
     
     
+
+
+
+
+
+
+
+def ChooseLLM_oldway(name=""):
+    
+    if name =="" : name = "openai"
+
+    if name=="local":
+        selected_llm = ChatOpenAI(
+            model="mistral-7b-local",
+            base_url="http://localhost:1552/v1"
+        )
+    elif name=="groq":
+        API_KEY = os.getenv("GROQ_API_KEY")
+        selected_llm = ChatGroq(temperature=0, groq_api_key=API_KEY, model_name="groq/mixtral-8x7b-32768")
+        
+    elif name=="groq-llama":
+        API_KEY = os.getenv("GROQ_API_KEY")
+        selected_llm = ChatGroq(temperature=0, groq_api_key=API_KEY, model_name="groq/llama-3.1-70b-versatile")
+    
+    elif name=="openai":
+        API_KEY = os.getenv("OPENAI_API_KEY")
+        selected_llm = ChatOpenAI(
+            temperature=0.7,
+            openai_api_base="https://api.openai.com/v1",  # Le point de terminaison de l'API OpenAI
+            openai_api_key=API_KEY ,  # Remplace par ta clé API OpenAI
+            model_name="gpt-4",  # Utilise GPT-4 par exemple, ou un autre modèle supporté
+        )
+    else:
+        API_KEY = os.getenv("OPENAI_API_KEY")
+        selected_llm = ChatOpenAI(
+            temperature=0.7,
+            openai_api_base="https://api.openai.com/v1",  # Le point de terminaison de l'API OpenAI
+            openai_api_key=API_KEY ,  # Remplace par ta clé API OpenAI
+        )
+
+    return selected_llm
