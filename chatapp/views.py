@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
 from lorem_text import lorem
-from box8.ChatAgent import chat_doc, chat_enhance, chat_memorize
+from box8.ChatAgent import chat_doc, chat_enhance, chat_memorize, chat_cctp
 from box8.utils_pdf import PdfUtils
 
 import markdown
@@ -451,6 +451,36 @@ def chatapp_talk(request):
 
 
 
+"""
+propose un sommaire d'analyse
+"""
+def chatapp_cctp(request):
+    destination_dir = user_destination_dir(request)
+    data = json.loads(request.body.decode('utf-8'))
+    analyse = data.get('analyse', '') # nom du dossier d'analyse
+    entries = data.get('entries', '') # liste des documents sélectionnés pour la question 
+    prompt = data.get('prompt', '') # question posée
+    history = data.get('history', '') # historique de conversation
+    llm = request.session.get('selected_llm', 'openai')
+    
+    if request.session.get('llm_debug'):
+        donnees_json = [{"title": "Remplacement du mécanisme de WC encastré", "description": "Démontage et déconnexion de la plaque de déclenchement pour accéder au mécanisme du WC encastré, démontage et déconnexion de l'ancien mécanisme de chasse d'eau qui fuit, détartrage du réservoir, installation du nouveau système, reconnexion de l'ensemble, remise en place de la plaque de déclenchement et remise en service de l'installation. Coût total de 308,00 €."}, {"title": "Réparation de fuite sur colonne de douche", "description": "Coupure de l'eau et vidange du réseau, démontage et déconnexion de la colonne de douche, localisation et modification de la fuite d'eau, remise en place de la colonne de douche et test d'étanchéité à l'eau et de bon fonctionnement. Coût total de 553,30 €, y compris la gestion des déchets."}]
+        return JsonResponse(donnees_json, safe=False)
+        
+    if len(entries)<1:
+        response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
+        return JsonResponse(response_data)
+    
+    # path vers le pdf analysé
+    pdf=os.path.join(destination_dir,analyse,entries[0])
+    response = chat_cctp(pdf=pdf, question = prompt, history = history, llm=llm)
+    return JsonResponse(response, safe=False)
+
+
+
+
+
+
 
 
 
@@ -514,7 +544,6 @@ def chatapp_word(request):
     generer_document_word(history, f"{pdf}.docx")
     response_data = build_talk_response("Le word a été généré","info")
     return JsonResponse(response_data)
-
 
 
 

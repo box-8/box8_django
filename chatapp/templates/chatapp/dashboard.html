@@ -56,6 +56,7 @@
         <div class="tab-pane fade show active" id="chat-panel" role="tabpanel" aria-labelledby="chat-tab">
           <div class="section-title pt-3">
             <h4 id="chat-panel-title">Conversation</h4>
+            <button id="prompt-sommaire" class="btn btn-outline-secondary" type="button">Sommaire</button>
             <button id="prompt-word" class="btn btn-outline-secondary" type="button">Générer le Word</button>
             <br/>
             <label>
@@ -657,6 +658,9 @@
     }
 
     
+    
+
+
     $("#prompt-word").click(function(){
       var allConversations = $('#conversation .row');
       var conversationArray = [];
@@ -771,6 +775,37 @@
 
     }
     
+    function setSommaire(response){
+      $.each(response, function(index, QA) {
+        let qa = newQA()
+        qa.prepend(newPrompt(QA.title, "info"))
+        qa.append(newPrompt(QA.description, "warning"))
+      });
+    }
+
+    $("#prompt-sommaire").click(function(){
+
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_cctp' %}',
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          
+        },
+        success: function(response) {
+            console.log(response);
+            setSommaire(response)
+        },
+        error: function(e) {
+            console.log(e);
+        }
+      });
+    })
+
+
+
     function newQA(){
       qa = $("<div class='container'></div>")
       $("#conversation").prepend(qa)

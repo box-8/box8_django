@@ -2,10 +2,8 @@ import json
 import os
 import tempfile
 import PyPDF2
-from langchain_groq import ChatGroq
-from langchain_openai import ChatOpenAI, OpenAI
 from crewai import Agent, Crew, Process, Task, LLM
-from crewai_tools import PDFSearchTool
+from crewai_tools import PDFSearchTool, DOCXSearchTool, TXTSearchTool, CSVSearchTool, WebsiteSearchTool
 
 
 
@@ -63,8 +61,27 @@ def ChooseLLM(name=""):
 
 
 
+def choose_tool(src):
+    """Choisit le bon outil en fonction de l'extension du fichier."""
+    _, extension = os.path.splitext(src)
+    extension = extension.lower()
 
-
+    
+    if extension == '.pdf':
+        print("[INFO] Outil sélectionné : PDFSearchTool")
+        return PDFSearchTool(pdf=src)
+    elif extension == '.txt':
+        print("[INFO] Outil sélectionné : TXTSearchTool")
+        return TXTSearchTool(txt=src)
+    elif extension == '.csv':
+        print("[INFO] Outil sélectionné : CSVSearchTool")
+        return CSVSearchTool(csv=src)
+    elif extension == '.docx':
+        print("[INFO] Outil sélectionné : DOCXSearchTool")
+        return DOCXSearchTool(docx=src)
+    else:
+        return WebsiteSearchTool(website=src)
+    
 
 
 
@@ -191,7 +208,7 @@ def chat_enhance(pdf, question , history=None, llm="openai"):
         Nouvelle question :
         {question}
         """
-    
+
     analyste = Agent(
         role="Analyste documentaire",
         goal=goal,
@@ -231,6 +248,57 @@ def chat_enhance(pdf, question , history=None, llm="openai"):
 
 
 
+
+
+def chat_cctp(pdf, question , history=None, llm="openai"):    
+    chef_projet = Agent(
+            role="Chef de projet",
+            goal="Le chef de projet coordonne les intervenants pour la rédaction du cahier des charges",
+            allow_delegation=False,
+            verbose=True,
+            backstory=(
+                f"""
+                Fort de son expérience en gestion de projet de construction le chef de projet 
+                coordonne les différents intervenants et s'assure de la rédaction d'un cahier des charges correspondant 
+                aux besoins de l'installation à construire
+                """
+            ),
+            tools=[PDFSearchTool(pdf=pdf)],
+            llm = ChooseLLM()
+        )
+
+    
+    allotissement = Task(
+        description="déterminer les lots techniques nécessaires au projet de construction",
+        expected_output=f"""
+        Un tableau json correspondant à la liste des lots de travaux à mobiliser pour le projet.
+        Les lots doivent être constitués de manière à consulter des entreprises.
+        La structure du json à respecter : 
+        [
+            {{
+                "title": "nom du lot technique en français",
+                "description": "description en français des travaux fournitures et prestations à charge du lot technique"
+            }},
+            ...
+        ]
+        Retournez uniquement le JSON demandé sans autre explication.
+        """,
+        agent=chef_projet,
+    )
+    
+    crew = Crew(
+        agents=[chef_projet],
+        tasks=[allotissement],
+        process=Process.sequential
+    )
+
+    try : 
+        result = crew.kickoff()
+        donnees_json = json.loads(result.raw)
+    except Exception as e:
+        result = {e}
+        
+    return donnees_json
 
 
 
@@ -273,7 +341,7 @@ def chat_doc(pdf, question , history=None, llm="openai"):
             pour répondre le plus précisémment possible à la question posée.
             """
         ),
-        tools=[PDFSearchTool(pdf=pdf)],
+        tools=[choose_tool(src=pdf)],
         llm = ChooseLLM(llm)
     )
     repondre = Task(
@@ -426,39 +494,3 @@ Remplir la liste des informations géographiques dans un tableau respectant stri
 
 
 
-
-
-def ChooseLLM_oldway(name=""):
-    
-    if name =="" : name = "openai"
-
-    if name=="local":
-        selected_llm = ChatOpenAI(
-            model="mistral-7b-local",
-            base_url="http://localhost:1552/v1"
-        )
-    elif name=="groq":
-        API_KEY = os.getenv("GROQ_API_KEY")
-        selected_llm = ChatGroq(temperature=0, groq_api_key=API_KEY, model_name="groq/mixtral-8x7b-32768")
-        
-    elif name=="groq-llama":
-        API_KEY = os.getenv("GROQ_API_KEY")
-        selected_llm = ChatGroq(temperature=0, groq_api_key=API_KEY, model_name="groq/llama-3.1-70b-versatile")
-    
-    elif name=="openai":
-        API_KEY = os.getenv("OPENAI_API_KEY")
-        selected_llm = ChatOpenAI(
-            temperature=0.7,
-            openai_api_base="https://api.openai.com/v1",  # Le point de terminaison de l'API OpenAI
-            openai_api_key=API_KEY ,  # Remplace par ta clé API OpenAI
-            model_name="gpt-4",  # Utilise GPT-4 par exemple, ou un autre modèle supporté
-        )
-    else:
-        API_KEY = os.getenv("OPENAI_API_KEY")
-        selected_llm = ChatOpenAI(
-            temperature=0.7,
-            openai_api_base="https://api.openai.com/v1",  # Le point de terminaison de l'API OpenAI
-            openai_api_key=API_KEY ,  # Remplace par ta clé API OpenAI
-        )
-
-    return selected_llm
