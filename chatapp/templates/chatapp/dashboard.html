@@ -60,7 +60,7 @@
             <button id="prompt-word" class="btn btn-outline-secondary" type="button">Générer le Word</button>
             <br/>
             <label>
-              <input type="checkbox" name="prompt-on-sumup" id="prompt-on-sumup" value="sumup"> Utiliser le résumé au lieu du fichier
+              <input type="checkbox" name="file_to_rag" id="file_to_rag" value="" {% if request.session.file_to_rag == ".txt" %}checked{% endif %}> Utiliser le résumé au lieu du fichier
             </label>
             
             <h5>Historique des conversations {% if request.session.llm_debug %}(Debug){% endif %}</h5>
@@ -88,6 +88,7 @@
             <div class="mb-1 btn-group">
               <a href="javascript:void(0)" id="btn_modal_open_upload" class="btn btn-outline-primary" >Upload ...</a>
               <a href="javascript:void(0)" id="btn_fusion_pdf" class="btn btn-outline-primary" >Fusionner les pdf</a>
+              <a href="javascript:void(0)" id="chroma_reset" class="btn btn-outline-primary" >Restart Chroma</a>
             </div>
             
           </div>
@@ -581,6 +582,24 @@
         }
       });
     });
+    $("#chroma_reset").click(function () {
+      console.log("chroma_reset", analyse_courante)
+      
+      $.ajax({
+        url: '{% url 'chatapp:chroma_reset' %}',
+        type: 'POST',
+        data:analyse_courante,
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+        },
+        success: function(response) {
+          console.log(response)
+          $.toast({heading: "Info",text:response.message})
+        },
+        error: function() {
+        }
+      });
+    });
     
 
     $('#upload-form').submit(function (e) {
@@ -784,9 +803,14 @@
     }
 
     $("#prompt-sommaire").click(function(){
+      question = $('#prompt').val()
 
+      if(question ==""){
+        return false
+      }
+      analyse_courante.prompt=question
       $.ajax({
-        url: '{% url 'chatapp:chatapp_cctp' %}',
+        url: '{% url 'chatapp:chatapp_sommaire' %}',
         type: 'POST',
         data: JSON.stringify(analyse_courante), 
         contentType: 'application/json', 
@@ -871,6 +895,38 @@
     });
 
 
+  });
+
+
+
+  $('#file_to_rag').on('click', function(event) {
+    
+    if ($(this).is(':checked')) {
+        // alert('La checkbox est cochée');
+        var selectedLLM = ".txt"
+    } else {
+        // alert('La checkbox n\'est pas cochée');
+        var selectedLLM = ""
+    }
+    
+    $.ajax({
+      url: '{% url 'chatapp:chatapp_file_to_rag' %}',
+      type: 'POST',
+      data: JSON.stringify({name:selectedLLM}),
+      contentType: 'application/json', 
+      beforeSend: function(xhr, settings){
+        xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+        
+      },
+      success: function(response) {
+        $.toast({heading: "Info",text:response.message})
+        console.log(response);
+      },
+      error: function(e) {
+        $.toast({heading: "Info",text:e})
+        console.log(e);
+      }
+    });
   });
 
 

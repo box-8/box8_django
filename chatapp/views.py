@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
 from lorem_text import lorem
-from box8.ChatAgent import chat_doc, chat_enhance, chat_memorize, chat_cctp
+from box8.ChatAgent import chat_doc, chat_enhance, chat_memorize, chat_sommaire
 from box8.utils_pdf import PdfUtils
 
 import markdown
@@ -364,6 +364,31 @@ def build_talk_response(message,state):
 
 
 
+#############################################################################
+""" CHROMA FUNCTIONS """
+#############################################################################
+
+def chroma_reset(request):
+    
+    import chromadb
+    from chromadb.config import Settings
+    path ="db/" 
+    if os.path.isdir(path):
+        client = chromadb.PersistentClient(path=path, settings=Settings(allow_reset=True))
+
+        client.reset()  # Réinitialise la base de données
+        state = True
+    else : 
+        state = False
+    print()
+    return JsonResponse({'status': 'success', 'message': f'Chroma reset : {state}'})
+
+
+
+
+
+
+
 
 
 
@@ -392,7 +417,23 @@ def chatapp_llm(request):
     return JsonResponse({'status': 'error', 'message': 'Méthode HTTP non supportée'}, status=405)
 
 
+def chatapp_file_to_rag(request):
+    if request.method == 'POST':
+        # Récupérer le nom du LLM depuis la requête AJAX
+        data = json.loads(request.body.decode('utf-8'))
+        file_to_rag = data.get('name', '')
+        
+        if file_to_rag == "":
+            request.session['file_to_rag'] = ""
+        else : 
+            request.session['file_to_rag'] = ".txt"
+        # Mettre à jour la session avec le modèle de langage sélectionné
+        request.session['file_to_rag'] = file_to_rag
+        # Retourner une réponse JSON pour l'interface utilisateur
+        return JsonResponse({'status': 'success', 'message': f'Utilisation du fichier {file_to_rag}'})
 
+        
+    
 
 
 
@@ -410,9 +451,21 @@ def chatapp_talk(request):
     llm = request.session.get('selected_llm', 'openai')
     print(llm)
     
-    if request.session['llm_debug']:
+    file_to_rag = request.session.get('file_to_rag', '')
+    if file_to_rag =="":
+        # path vers le pdf analysé
+        pdf=os.path.join(destination_dir,analyse,entries[0])
+    else:
+        pdf=os.path.join(destination_dir,analyse,entries[0])
+        if os.path.exists(pdf + file_to_rag):
+            pdf = pdf + file_to_rag
+            
+    if request.session.get('llm_debug', False):
         prompt = '\n\n'.join([lorem.paragraph() for _ in range(3)])
-        response_data = build_talk_response(f"chatapp_talk : réponse à la question : {prompt}","warning")
+        response_data = build_talk_response(f"chatapp_talk : réponse à la question : {prompt} {file_to_rag}","warning")
+        return JsonResponse(response_data)
+    if len(entries)<1:
+        response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
         return JsonResponse(response_data)
     
     if not history:
@@ -422,12 +475,6 @@ def chatapp_talk(request):
     # s'agit-t-il d'un prompt préenregistré et quel est le format de réponse attendu (json / texte, ...)
     awaited_result = special_prompts(prompt) 
     
-    if len(entries)<1:
-        response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
-        return JsonResponse(response_data)
-    
-    # path vers le pdf analysé
-    pdf=os.path.join(destination_dir,analyse,entries[0])
     
     if awaited_result["format"] == "text":
         response,history = chat_doc(pdf=pdf, question = awaited_result["prompt"], history = history, llm=llm)
@@ -454,7 +501,7 @@ def chatapp_talk(request):
 """
 propose un sommaire d'analyse
 """
-def chatapp_cctp(request):
+def chatapp_sommaire(request):
     destination_dir = user_destination_dir(request)
     data = json.loads(request.body.decode('utf-8'))
     analyse = data.get('analyse', '') # nom du dossier d'analyse
@@ -473,7 +520,8 @@ def chatapp_cctp(request):
     
     # path vers le pdf analysé
     pdf=os.path.join(destination_dir,analyse,entries[0])
-    response = chat_cctp(pdf=pdf, question = prompt, history = history, llm=llm)
+    
+    response = chat_sommaire(pdf=pdf, question = prompt, history = history, llm=llm)
     return JsonResponse(response, safe=False)
 
 

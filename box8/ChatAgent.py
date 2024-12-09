@@ -4,6 +4,7 @@ import tempfile
 import PyPDF2
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai_tools import PDFSearchTool, DOCXSearchTool, TXTSearchTool, CSVSearchTool, WebsiteSearchTool
+from docx import Document
 
 
 
@@ -106,19 +107,48 @@ def chat_memorize(pdf, question , history=None, llm="openai"):
     
     
     texte_pages = []
-    try:
-        # Ouvrir le fichier PDF
-        with open(pdf, 'rb') as pdf_file:
-            # Créer un objet lecteur PDF
-            reader = PyPDF2.PdfReader(pdf_file)
 
-            # Boucler sur toutes les pages du PDF
-            for page_num, page in enumerate(reader.pages):
-                try:
-                    # Extraire le texte de la page et l'ajouter à la liste
-                    texte_pages.append(page.extract_text())
-                except Exception as e:
-                    print(f"Erreur lors de l'extraction du texte de la page {page_num + 1}: {e}")
+    try:
+        extension = os.path.splitext(pdf)[1].lower()
+
+        # Extraction pour les fichiers PDF
+        if extension == '.pdf':
+            with open(pdf, 'rb') as pdf_file:
+                reader = PyPDF2.PdfReader(pdf_file)
+
+                for page_num, page in enumerate(reader.pages):
+                    try:
+                        texte = page.extract_text()
+                        if texte:
+                            texte_pages.append(texte)
+                        else:
+                            print(f"Le texte de la page {page_num + 1} est vide ou illisible.")
+                    except Exception as e:
+                        print(f"Erreur lors de l'extraction du texte de la page {page_num + 1}: {e}")
+
+        # Extraction pour les fichiers DOCX
+        elif extension == '.docx':
+            try:
+                doc = Document(pdf)
+                paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+
+                # Grouper les paragraphes par blocs de 11
+                bloc = []
+                for i, paragraphe in enumerate(paragraphs, start=1):
+                    bloc.append(paragraphe)
+                    if i % 11 == 0:
+                        texte_pages.append("\n".join(bloc))
+                        bloc = []
+
+                # Ajouter les paragraphes restants si le dernier bloc a moins de 11 paragraphes
+                if bloc:
+                    texte_pages.append("\n".join(bloc))
+
+            except Exception as e:
+                print(f"Erreur lors de l'extraction du texte du fichier DOCX : {e}")
+
+        else:
+            print("Format de fichier non pris en charge. Seuls les fichiers PDF et DOCX sont acceptés.")
 
     except FileNotFoundError:
         print(f"Le fichier {pdf} est introuvable.")
@@ -220,7 +250,7 @@ def chat_enhance(pdf, question , history=None, llm="openai"):
             pour améliorer la rédaction du texte initial et en développer le contenu.
             """
         ),
-        tools=[PDFSearchTool(pdf=pdf)],
+        tools=[choose_tool(src=pdf)],
         llm = ChooseLLM(llm)
     )
     
@@ -249,8 +279,63 @@ def chat_enhance(pdf, question , history=None, llm="openai"):
 
 
 
+""" métier CCTP """
+def chat_sommaire(pdf, question , history=None, llm="openai"):    
+    
+    try : 
+    
+        lecteur = Agent(
+                role="Analyste littéraire",
+                goal="L'analyste coordonne les intervenants pour la rédaction du cahier des charges",
+                allow_delegation=False,
+                verbose=True,
+                backstory=(
+                    f"""
+                    Fort de son expertise en analyse de texte l'analyste littéraire extrait les informations demandées à partir du document
+                    """
+                ),
+                tools=[choose_tool(src=pdf)],
+                llm = ChooseLLM()
+            )
 
-def chat_cctp(pdf, question , history=None, llm="openai"):    
+        
+        analyseJson = Task(
+            description=f"""
+            Extraire les informations permettant de répondre à la question posée : 
+            Question : {question}""",
+            expected_output=f"""
+            Un tableau json correspondant à la liste des réponses trouvées par l'analyste dans le texte du document.
+            La structure du json à respecter : 
+            [
+                {{
+                    "title": "nom de l'information trouvée",
+                    "description": "description détaillée de la réponse "
+                }},
+                ...
+            ]
+            Retournez uniquement le JSON au format demandé sans autre explication.
+            """,
+            agent=lecteur,
+        )
+        
+        crew = Crew(
+            agents=[lecteur],
+            tasks=[analyseJson],
+            process=Process.sequential
+        )
+
+    
+        result = crew.kickoff()
+        donnees_json = json.loads(result.raw)
+    except Exception as e:
+        result = {e}
+        
+    return donnees_json
+
+
+
+""" métier CCTP """
+def chat_cctp_lots(pdf, question , history=None, llm="openai"):    
     chef_projet = Agent(
             role="Chef de projet",
             goal="Le chef de projet coordonne les intervenants pour la rédaction du cahier des charges",
@@ -263,7 +348,7 @@ def chat_cctp(pdf, question , history=None, llm="openai"):
                 aux besoins de l'installation à construire
                 """
             ),
-            tools=[PDFSearchTool(pdf=pdf)],
+            tools=[choose_tool(src=pdf)],
             llm = ChooseLLM()
         )
 
