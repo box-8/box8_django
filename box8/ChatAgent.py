@@ -3,7 +3,12 @@ import os
 import tempfile
 import PyPDF2
 from crewai import Agent, Crew, Process, Task, LLM
-from crewai_tools import PDFSearchTool, DOCXSearchTool, TXTSearchTool, CSVSearchTool, WebsiteSearchTool
+from crewai_tools import (PDFSearchTool,
+                          DOCXSearchTool,
+                          TXTSearchTool,
+                          CSVSearchTool,
+                          WebsiteSearchTool,
+                          ScrapeWebsiteTool)
 from docx import Document
 
 
@@ -67,6 +72,9 @@ def choose_tool(src):
     _, extension = os.path.splitext(src)
     extension = extension.lower()
 
+    if src.startswith('http'):
+        print("[INFO] Outil sélectionné : ScrapeWebsiteTool")
+        return ScrapeWebsiteTool(website_url=src)
     
     if extension == '.pdf':
         print("[INFO] Outil sélectionné : PDFSearchTool")
@@ -579,3 +587,56 @@ Remplir la liste des informations géographiques dans un tableau respectant stri
 
 
 
+
+
+
+def webscrap(pdf, question , history=None, llm="openai"): 
+    goal=f"""
+        L'analyste répond à la question posée :
+        Question :
+        {question}
+        """
+
+    analyste = Agent(
+        role="Analyste documentaire",
+        goal=goal,
+        allow_delegation=False,
+        verbose=True,
+        backstory=(
+            """
+            Lecteur chevronné, l'analyste recherche et extrait les données pertinentes du document ou de ses propres connaissances.
+            """
+        ),
+        tools=[choose_tool(src=pdf)],
+        llm = ChooseLLM(llm)
+    )
+    
+    description=f"""Etablir un résumé de la page internet et en extraire les informations clefs"""
+    
+    repondre = Task(
+        description=description,
+        expected_output="""
+        Un résumé structuré, utilisant le format markdown pour la mise en forme : 
+        - Résumé
+        - liste de points clefs
+        """,
+        agent=analyste,
+    )
+    
+    crew = Crew(
+        agents=[analyste],
+        tasks=[repondre],
+        process=Process.sequential  # Exécution séquentielle des tâches
+    )
+    try : 
+        result = crew.kickoff()
+    except Exception as e:
+        result = e
+    return result.raw
+if __name__ == "__main__":
+
+    print(webscrap(
+        pdf="https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000038812251",
+        question="résumer la page internet",
+        llm="groq-llama"
+        ))

@@ -61,7 +61,7 @@ def models_dashboard(request):
     # initialisation des variables session 
     chatapp_init_session(request)
     context = {
-        "welcome": "Liste des modèles entrainés par Naldéo"
+        "welcome": "Liste des modèles"
     }
     return render(request, 'chatapp/models_dashboard.html', context=context)
 
@@ -435,13 +435,7 @@ def chatapp_file_to_rag(request):
         
     
 
-
-
-
-# envoie une question sur le(s) documents sélectionnés (uniquement le premier en version demo, le mode multi-doc est à implémenter dans naldia)
-# fait-on appel à des prompts préétablis ?
-
-def chatapp_talk(request):
+def gen_request(request):
     destination_dir = user_destination_dir(request)
     data = json.loads(request.body.decode('utf-8'))
     analyse = data.get('analyse', '') # nom du dossier d'analyse
@@ -459,10 +453,19 @@ def chatapp_talk(request):
         pdf=os.path.join(destination_dir,analyse,entries[0])
         if os.path.exists(pdf + file_to_rag):
             pdf = pdf + file_to_rag
+    
+    return analyse, entries, prompt, history, llm, pdf
+
+# envoie une question sur le(s) documents sélectionnés (uniquement le premier en version demo, le mode multi-doc est à implémenter dans naldia)
+# fait-on appel à des prompts préétablis ?
+
+def chatapp_talk(request):
+    analyse, entries, prompt, history, llm, pdf = gen_request(request=request)
+    
             
     if request.session.get('llm_debug', False):
         prompt = '\n\n'.join([lorem.paragraph() for _ in range(3)])
-        response_data = build_talk_response(f"chatapp_talk : réponse à la question : {prompt} {file_to_rag}","warning")
+        response_data = build_talk_response(f"chatapp_talk : réponse à la question : {prompt}","warning")
         return JsonResponse(response_data)
     if len(entries)<1:
         response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
@@ -502,13 +505,7 @@ def chatapp_talk(request):
 propose un sommaire d'analyse
 """
 def chatapp_sommaire(request):
-    destination_dir = user_destination_dir(request)
-    data = json.loads(request.body.decode('utf-8'))
-    analyse = data.get('analyse', '') # nom du dossier d'analyse
-    entries = data.get('entries', '') # liste des documents sélectionnés pour la question 
-    prompt = data.get('prompt', '') # question posée
-    history = data.get('history', '') # historique de conversation
-    llm = request.session.get('selected_llm', 'openai')
+    analyse, entries, prompt, history, llm, pdf = gen_request(request=request)
     
     if request.session.get('llm_debug'):
         donnees_json = [{"title": "Remplacement du mécanisme de WC encastré", "description": "Démontage et déconnexion de la plaque de déclenchement pour accéder au mécanisme du WC encastré, démontage et déconnexion de l'ancien mécanisme de chasse d'eau qui fuit, détartrage du réservoir, installation du nouveau système, reconnexion de l'ensemble, remise en place de la plaque de déclenchement et remise en service de l'installation. Coût total de 308,00 €."}, {"title": "Réparation de fuite sur colonne de douche", "description": "Coupure de l'eau et vidange du réseau, démontage et déconnexion de la colonne de douche, localisation et modification de la fuite d'eau, remise en place de la colonne de douche et test d'étanchéité à l'eau et de bon fonctionnement. Coût total de 553,30 €, y compris la gestion des déchets."}]
@@ -517,9 +514,6 @@ def chatapp_sommaire(request):
     if len(entries)<1:
         response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
         return JsonResponse(response_data)
-    
-    # path vers le pdf analysé
-    pdf=os.path.join(destination_dir,analyse,entries[0])
     
     response = chat_sommaire(pdf=pdf, question = prompt, history = history, llm=llm)
     return JsonResponse(response, safe=False)
@@ -534,26 +528,17 @@ def chatapp_sommaire(request):
 
 
 def chatapp_enhance(request):
-    destination_dir = user_destination_dir(request)
-    data = json.loads(request.body.decode('utf-8'))
-    analyse = data.get('analyse', '') # nom du dossier d'analyse
-    entries = data.get('entries', '') # liste des documents sélectionnés pour la question 
-    prompt = data.get('prompt', '') # question posée
-    history = data.get('history', '') # historique de conversation
-    llm = request.session.get('selected_llm', 'openai')
-    print(history)
+    analyse, entries, prompt, history, llm, pdf = gen_request(request=request)
+    
     if request.session['llm_debug']:
         prompt = '\n\n'.join([lorem.paragraph() for _ in range(3)])
         response_data = build_talk_response(f"chatapp_enhance : réponse à la question : {prompt}","warning")
         return JsonResponse(response_data)
         
-    
     if len(entries)<1:
         response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
         return JsonResponse(response_data)
     
-    # path vers le pdf analysé
-    pdf=os.path.join(destination_dir,analyse,entries[0])
     response = chat_enhance(pdf=pdf, question = prompt, history = history, llm=llm)
     response_data = build_talk_response(response,"warning")
     return JsonResponse(response_data)
@@ -577,18 +562,12 @@ def generer_document_word(donnees, nom_fichier="document_genere.docx"):
     print(f"Document généré avec succès : {nom_fichier}")
 
 def chatapp_word(request):
-    destination_dir = user_destination_dir(request)
-    data = json.loads(request.body.decode('utf-8'))
-    analyse = data.get('analyse', '') # nom du dossier d'analyse
-    entries = data.get('entries', '') # liste des documents sélectionnés pour la question 
-    prompt = data.get('prompt', '') # question posée
-    history = data.get('history', '') # historique de conversation
-    llm = request.session.get('selected_llm', 'openai')
+    analyse, entries, prompt, history, llm, pdf = gen_request(request=request)
+    
     if len(entries)<1:
         response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
         return JsonResponse(response_data)
-    pdf=os.path.join(destination_dir,analyse,prompt)
-    print(history)
+    
     generer_document_word(history, f"{pdf}.docx")
     response_data = build_talk_response("Le word a été généré","info")
     return JsonResponse(response_data)
@@ -619,15 +598,8 @@ def format_text(text):
 
 # mémorize document (mode mulit-doc non implémenté)
 def chatapp_memorize(request):
-    destination_dir = user_destination_dir(request)
-    data = json.loads(request.body.decode('utf-8'))
-    analyse = data.get('analyse', '') # nom du dossier d'analyse
-    entries = data.get('entries', '') # liste des documents sélectionnés pour la question 
-    prompt = data.get('prompt', '') # question posée
-    history = data.get('history', '') # historique de conversation
-    llm = request.session.get('selected_llm', 'openai')
-
-    print(llm)
+    analyse, entries, prompt, history, llm, pdf = gen_request(request=request)
+    
     if request.session['llm_debug']:
         prompt = '\n\n'.join([lorem.paragraph() for _ in range(3)])
         response_data = build_talk_response(f"chatapp_memorize : réponse à la question : {prompt}","warning")
@@ -637,8 +609,6 @@ def chatapp_memorize(request):
         response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
         return JsonResponse(response_data)
     
-    # path vers le pdf analysé
-    pdf=os.path.join(destination_dir,analyse,entries[0])
     response = chat_memorize(pdf=pdf, question = prompt, history = history, llm=llm)
     response_data = build_talk_response(response,"warning")
     return JsonResponse(response_data)
