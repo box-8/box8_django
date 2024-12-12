@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
 from lorem_text import lorem
-from box8.ChatAgent import chat_doc, chat_enhance, chat_memorize, chat_sommaire
+from box8.ChatAgent import chat, chat_enhance, chat_memorize, chat_sommaire
 from box8.utils_pdf import PdfUtils
 
 import markdown
@@ -354,8 +354,12 @@ def chatapp_set_fiches(request):
         return JsonResponse(response_data)"""
 
 
-def build_talk_response(message,state):
-    response_data = {"content": f"""{message}""","state":state}
+def build_talk_response(message,state,json={}):
+    response_data = {
+        "content": f"""{message}""",
+        "state":state,
+        "json":json
+        }
     return response_data
 
 
@@ -444,6 +448,8 @@ def gen_request(request):
     history = data.get('history', '') # historique de conversation
     llm = request.session.get('selected_llm', 'openai')
     print(llm)
+    if len(entries)<1:
+        entries=["just.chat"]
     
     file_to_rag = request.session.get('file_to_rag', '')
     if file_to_rag =="":
@@ -454,19 +460,40 @@ def gen_request(request):
         if os.path.exists(pdf + file_to_rag):
             pdf = pdf + file_to_rag
     
-    return analyse, entries, prompt, history, llm, pdf
+    return analyse, entries, prompt, history, llm, pdf, data
+
+
+
+def getjson_conversation(json_conversation_path):
+    if os.path.exists(json_conversation_path):
+        with open(json_conversation_path, "r", encoding="utf-8") as f:
+            json_conversation = json.load(f)
+    else:
+        json_conversation={}
+    return json_conversation
+
+
+def chatapp_get_conversation(request):
+    analyse, entries, prompt, history, llm, pdf, data = gen_request(request=request)
+    
+    json_conversation_path = pdf+".json"
+    response_data = getjson_conversation(json_conversation_path)
+    return JsonResponse(response_data)
+
+
+
 
 # envoie une question sur le(s) documents sélectionnés (uniquement le premier en version demo, le mode multi-doc est à implémenter dans naldia)
 # fait-on appel à des prompts préétablis ?
 
 def chatapp_talk(request):
-    analyse, entries, prompt, history, llm, pdf = gen_request(request=request)
+    analyse, entries, prompt, history, llm, pdf, data = gen_request(request=request)
     
-            
+    
     if request.session.get('llm_debug', False):
+        pdf = "llm_debug"
         prompt = '\n\n'.join([lorem.paragraph() for _ in range(3)])
-        response_data = build_talk_response(f"chatapp_talk : réponse à la question : {prompt}","warning")
-        return JsonResponse(response_data)
+        
     if len(entries)<1:
         response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
         return JsonResponse(response_data)
@@ -478,15 +505,14 @@ def chatapp_talk(request):
     # s'agit-t-il d'un prompt préenregistré et quel est le format de réponse attendu (json / texte, ...)
     awaited_result = special_prompts(prompt) 
     
-    
     if awaited_result["format"] == "text":
-        response,history = chat_doc(pdf=pdf, question = awaited_result["prompt"], history = history, llm=llm)
-        response_data = build_talk_response(response,"warning")
+        response, conversation_json = chat(pdf=pdf, question = awaited_result["prompt"], history = history, llm=llm)
+        response_data = build_talk_response(response,"warning", json=conversation_json)
     
     elif awaited_result["format"] == "json":
         try:
             history=[]
-            response, history = chat_doc(pdf=pdf, question = awaited_result["prompt"], history = history, llm=llm)
+            response, conversation_json  = chat(pdf=pdf, question = awaited_result["prompt"], history = history, llm=llm)
             #donnees_json = json.loads(response) # Analyser la chaîne JSON en un objet Python
             return JsonResponse(response) # on renvoie la réponse JsonResponse avec les données JSON
 
@@ -505,15 +531,11 @@ def chatapp_talk(request):
 propose un sommaire d'analyse
 """
 def chatapp_sommaire(request):
-    analyse, entries, prompt, history, llm, pdf = gen_request(request=request)
+    analyse, entries, prompt, history, llm, pdf, data = gen_request(request=request)
     
     if request.session.get('llm_debug'):
         donnees_json = [{"title": "Remplacement du mécanisme de WC encastré", "description": "Démontage et déconnexion de la plaque de déclenchement pour accéder au mécanisme du WC encastré, démontage et déconnexion de l'ancien mécanisme de chasse d'eau qui fuit, détartrage du réservoir, installation du nouveau système, reconnexion de l'ensemble, remise en place de la plaque de déclenchement et remise en service de l'installation. Coût total de 308,00 €."}, {"title": "Réparation de fuite sur colonne de douche", "description": "Coupure de l'eau et vidange du réseau, démontage et déconnexion de la colonne de douche, localisation et modification de la fuite d'eau, remise en place de la colonne de douche et test d'étanchéité à l'eau et de bon fonctionnement. Coût total de 553,30 €, y compris la gestion des déchets."}]
         return JsonResponse(donnees_json, safe=False)
-        
-    if len(entries)<1:
-        response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
-        return JsonResponse(response_data)
     
     response = chat_sommaire(pdf=pdf, question = prompt, history = history, llm=llm)
     return JsonResponse(response, safe=False)
@@ -528,9 +550,11 @@ def chatapp_sommaire(request):
 
 
 def chatapp_enhance(request):
-    analyse, entries, prompt, history, llm, pdf = gen_request(request=request)
+    analyse, entries, prompt, history, llm, pdf, data = gen_request(request=request)
+    originalText = data.get('originalText', '') # texte a augmenter
+    llm_debug = request.session.get('llm_debug', False)
     
-    if request.session['llm_debug']:
+    if llm_debug:
         prompt = '\n\n'.join([lorem.paragraph() for _ in range(3)])
         response_data = build_talk_response(f"chatapp_enhance : réponse à la question : {prompt}","warning")
         return JsonResponse(response_data)
@@ -539,36 +563,82 @@ def chatapp_enhance(request):
         response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
         return JsonResponse(response_data)
     
-    response = chat_enhance(pdf=pdf, question = prompt, history = history, llm=llm)
-    response_data = build_talk_response(response,"warning")
+    response, conversation_json = chat_enhance(originalText= originalText, pdf=pdf, question = prompt, history = history, llm=llm)
+    response_data = build_talk_response(response,"warning", json=conversation_json)
     return JsonResponse(response_data)
 
 
 
 from docx import Document
+from bs4 import BeautifulSoup
+def ajouter_contenu_html(doc, contenu_html):
+    # Utilise BeautifulSoup pour parser le contenu HTML
+    soup = BeautifulSoup(contenu_html, 'html.parser')
+
+    for element in soup.descendants:
+        if element.name == 'p':
+            doc.add_paragraph(element.text)
+        elif element.name == 'strong':
+            run = doc.add_paragraph().add_run(element.text)
+            run.bold = True
+        elif element.name == 'em':
+            run = doc.add_paragraph().add_run(element.text)
+            run.italic = True
+        elif element.name == 'h1':
+            doc.add_heading(element.text, level=1)
+        elif element.name == 'h2':
+            doc.add_heading(element.text, level=2)
+        elif element.name == 'h3':
+            doc.add_heading(element.text, level=3)
+        elif element.name == 'ul':
+            for li in element.find_all('li'):
+                doc.add_paragraph(li.text, style='ListBullet')
+        elif element.name == 'ol':
+            for li in element.find_all('li'):
+                doc.add_paragraph(li.text, style='ListNumber')
+        # Vous pouvez ajouter d'autres balises si nécessaire
+        
 def generer_document_word(donnees, nom_fichier="document_genere.docx"):
     # Crée un nouveau document Word
     doc = Document()
-    
+    conversation = []
     # Boucle à travers chaque entrée du tableau pour ajouter des chapitres
     for entree in donnees:
         titre, contenu = entree  # Décompose l'entrée en titre et contenu
         # Ajoute le titre comme un en-tête de niveau 1
+        conversation.append({"title":titre,"description": contenu})
         doc.add_heading(titre, level=1)
         # Ajoute le contenu comme un paragraphe
-        doc.add_paragraph(contenu)
+        ajouter_contenu_html(doc, contenu)
     # Enregistre le document avec le nom spécifié
+    
+    conversation_json  = {
+        "conversationPath":nom_fichier+".json",
+        "conversation": conversation
+        
+    }
     doc.save(nom_fichier)
     print(f"Document généré avec succès : {nom_fichier}")
+    
+    
+    # Enregistre l'objet JSON dans un fichier
+    nom_fichier_json = nom_fichier + ".json"
+    with open(nom_fichier_json, "w", encoding="utf-8") as f:
+        json.dump(conversation_json, f, indent=4, ensure_ascii=False)
 
+    print(f"Conversation sauvegardée en JSON : {nom_fichier_json}")
+    
+    
 def chatapp_word(request):
-    analyse, entries, prompt, history, llm, pdf = gen_request(request=request)
+    analyse, entries, prompt, history, llm, pdf, data = gen_request(request=request)
     
     if len(entries)<1:
         response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
         return JsonResponse(response_data)
     
-    generer_document_word(history, f"{pdf}.docx")
+    
+    filepath=os.path.join(user_destination_dir(request),analyse,f"{prompt}.docx")
+    generer_document_word(history, filepath)
     response_data = build_talk_response("Le word a été généré","info")
     return JsonResponse(response_data)
 
@@ -598,9 +668,11 @@ def format_text(text):
 
 # mémorize document (mode mulit-doc non implémenté)
 def chatapp_memorize(request):
-    analyse, entries, prompt, history, llm, pdf = gen_request(request=request)
+    analyse, entries, prompt, history, llm, pdf, data = gen_request(request=request)
     
-    if request.session['llm_debug']:
+    llm_debug = request.session.get('llm_debug', False)
+    
+    if llm_debug: 
         prompt = '\n\n'.join([lorem.paragraph() for _ in range(3)])
         response_data = build_talk_response(f"chatapp_memorize : réponse à la question : {prompt}","warning")
         return JsonResponse(response_data)
@@ -619,6 +691,11 @@ def chatapp_memorize(request):
 # retour le cpntenu du ficher de vectorisation pour l'afficher dans le navigateur
 def afficher_resume_vectorisation(request, analyse, nom_fichier):
     file_path = os.path.join(settings.BASE_DIR, 'chatapp','sharepoint', request.user.username, analyse, nom_fichier+".txt")
+    
+    json_conversation_path = os.path.join(settings.BASE_DIR, 'chatapp','sharepoint', request.user.username, analyse, nom_fichier+".json")
+    json_conversation = getjson_conversation(json_conversation_path)
+    
+    
     # Vérifiez que le fichier existe avant de le renvoyer
     # printc(file_path,bcolors.FAIL)
 
@@ -627,10 +704,10 @@ def afficher_resume_vectorisation(request, analyse, nom_fichier):
         with open(file_path, 'r', encoding='utf-8') as fichier:
             # Lire le contenu du fichier
             response_data = fichier.read()
-        response_data = build_talk_response(format_text(response_data),"success")
+        response_data = build_talk_response(format_text(response_data),"success", json=json_conversation)
         return JsonResponse(response_data)
     else:
-        response_data = build_talk_response("le résumé du fichier n'existe pas, lancez la procédure","warning")
+        response_data = build_talk_response("le résumé du fichier n'existe pas, lancez la procédure","warning", json=json_conversation)
         return JsonResponse(response_data)
 
 

@@ -58,6 +58,7 @@
             <h4 id="chat-panel-title">Conversation</h4>
             <button id="prompt-sommaire" class="btn btn-outline-secondary" type="button">Sommaire</button>
             <button id="prompt-word" class="btn btn-outline-secondary" type="button">Générer le Word</button>
+            <button id="prompt-json-conversation" class="btn btn-outline-secondary" type="button">Get Conversation</button>
             <br/>
             <label>
               <input type="checkbox" name="file_to_rag" id="file_to_rag" value="" {% if request.session.file_to_rag == ".txt" %}checked{% endif %}> Utiliser le résumé au lieu du fichier
@@ -175,13 +176,19 @@
                     </label>
                 </div>
 
-                    <div class="form-check">
-                      <input class="form-check-input" type="radio" name="llm" id="local" value="local" {% if request.session.selected_llm == "local" %}checked{% endif %} >
-                      <label class="form-check-label" for="local">
-                          Local Mistral
-                      </label>
-                    </div>
-
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="llm" id="local" value="local" {% if request.session.selected_llm == "local" %}checked{% endif %} >
+                  <label class="form-check-label" for="local">
+                      Local Mistral
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="llm" id="claude" value="claude" {% if request.session.selected_llm == "claude" %}checked{% endif %} >
+                  <label class="form-check-label" for="claude">
+                    claude-3-5-sonnet-20240620
+                  </label>
+                </div>
+                    
                     <div class="form-check">
                       <input class="form-check-input" type="radio" name="llm" id="debug" value="debug" {% if request.session.selected_llm == "debug" %}checked{% endif %} >
                       <label class="form-check-label" for="debug">
@@ -307,7 +314,7 @@
             if(capt.length > 35){capt = entry.caption.substring(0, 35)+"..."}
             // $("#fichier-tab").html(capt)
             $("#fichier-panel-title").html(entry.caption)
-            chatapp_set_fiches(entry.parent_analyse)
+            chatapp_set_fiches(entry.parent_analyse) 
             $("#viewer-iframe").click(function(){
               url='/sharepoint/'+analyse_courante.username+'/'+ entry.parent_analyse+'/'+entry.caption
               window.open(url, 'viewerIframe');
@@ -478,9 +485,23 @@
           xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
         },
         success: function (response) {
-          $.toast({heading: "Info", text: "Le résumé du document vectorisé est disponible dans l'ongle l'onglet Fichier.", position: toastPosition, icon: response.state, stack: true,hideAfter: 7000 })
           $("#filedetails").html(response.content)
           
+          if(Object.keys(response.json).length === 0){
+            $("#prompt-json-conversation").hide()
+          }else{
+            $("#prompt-json-conversation").show().addClass("btn-outline-success")
+          }
+          if(response.state == "warning"){
+            $.toast({heading: "Info", text: "Le résumé du document n'existe pas, lancer la procédure dans l'onglet Fichier.", position: toastPosition, icon: response.state, stack: true,hideAfter: 7000 })
+          
+          }else{
+            $.toast({heading: "Info", text: "Le résumé du document vectorisé est affiché dans l'ongle l'onglet Fichier.", position: toastPosition, icon: response.state, stack: true,hideAfter: 7000 })
+          
+          }
+
+
+
           console.log(response);
         },
         error: function () {
@@ -679,21 +700,33 @@
     
     
 
+    // sauvegarde la conversation sélectionnée
+    $("#prompt-json-conversation").click(function(){
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_get_conversation' %}',
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          
+        },
+        success: function(response) {
+            console.log(response.conversation);
+            setSommaire(response.conversation.reverse())
+        },
+        error: function(e) {
+            console.log(e);
+        }
+      });
+      
+    })
 
     $("#prompt-word").click(function(){
-      var allConversations = $('#conversation .row');
-      var conversationArray = [];
-      allConversations.each(function() {
-          var question = $(this).find('.alert-info').text().trim();  // Récupérer le texte de la question
-          var answer = $(this).next('.row').find('.alert-danger').text().trim();  // Récupérer le texte de la réponse
-          if (question && answer) {
-              conversationArray.push([question, answer]);
-          }
-      });
-      analyse_courante.history = conversationArray
+      analyse_courante.history = ConversationArray("html")
       let nom = prompt("Entrez le nom du fichier que vous souhaiter générer :", "Fichier Word");
-
       analyse_courante.prompt=nom
+      console.log(analyse_courante)
       $.ajax({
         url: '{% url 'chatapp:chatapp_word' %}',
         type: 'POST',
@@ -714,27 +747,37 @@
     })
 
 
-    /* Fonctionnalités de chat */
-    function chatapp_talk(){
-      question = $('#prompt').val()
-      if(question==""){return false}
-      analyse_courante.prompt=question
-
+    function ConversationArray(getType){
       var conversationArray = [];
 
       var allConversations = $('#conversation .row');
       // Sélectionner toutes les paires de question et réponse
-      var lastFiveConversations = allConversations.slice(-5);
-
-      lastFiveConversations.each(function() {
+      allConversations.each(function() {
           var question = $(this).find('.alert-info').text().trim();  // Récupérer le texte de la question
-          var answer = $(this).next('.row').find('.alert-warning').text().trim();  // Récupérer le texte de la réponse
+          
+          if(getType == "text"){
+            var answer = $(this).next('.row').find('.alert-warning').text().trim();  // Récupérer le texte de la réponse
+          
+          }else{
+            var answer = $(this).next('.row').find('.alert-warning').html();  // Récupérer le texte de la réponse
+          
+          }
+          
+
           // Ajouter à l'array si à la fois question et réponse existent
           if (question && answer) {
               conversationArray.push([question, answer]);
           }
       });
-      analyse_courante.history = conversationArray
+      return conversationArray
+    }
+
+    /* Fonctionnalités de chat */
+    function chatapp_talk(){
+      question = $('#prompt').val()
+      if(question==""){return false}
+      analyse_courante.prompt=question
+      analyse_courante.history = ConversationArray("text")
       const qa = newQA();
       $.ajax({
         url: '{% url 'chatapp:chatapp_talk' %}',
@@ -763,11 +806,11 @@
     /* Fonctionnalités de chat : on développe la réponse donnée */
     function chatapp_enhance(divQuestion, divWarning){
       question = divQuestion.val()
-      answer = divWarning.text()
+      originalText = divWarning.text()
       if(question==""){return false}
       analyse_courante.prompt=question
-      var conversationArray = [];
-      analyse_courante.history = answer;
+      analyse_courante.history = ConversationArray("text")
+      analyse_courante.originalText = originalText;
 
       $.ajax({
         url: '{% url 'chatapp:chatapp_enhance' %}',
@@ -782,8 +825,6 @@
         success: function(response) {
             html = marked.parse(response.content)
             divWarning.html(html)
-            
-            
             console.log(response);
         },
         error: function(e) {
@@ -798,7 +839,7 @@
       $.each(response, function(index, QA) {
         let qa = newQA()
         qa.prepend(newPrompt(QA.title, "info"))
-        qa.append(newPrompt(QA.description, "warning"))
+        qa.append(newPrompt(marked.parse(QA.description), "warning")) 
       });
     }
 
@@ -1000,7 +1041,7 @@
   function plot_response(json_plot){
     var filename = json_plot.filename
     var summary = json_plot.summary
-    console.log(json_plot)
+    console.log(json_plot.infos_geographiques)
     json_plot.infos_geographiques.forEach(function(markerData, index) {
       // console.log(markerData)
       let latlng = [markerData.lat,markerData.lng]

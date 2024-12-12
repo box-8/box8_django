@@ -14,6 +14,7 @@ from .views import (chatapp_dashboard,
                     chatapp_ajax_delete_analyse, 
                     chatapp_talk,
                     chatapp_enhance,
+                    chatapp_get_conversation,
                     chatapp_word,
                     chatapp_sommaire,
                     chatapp_llm,
@@ -44,6 +45,9 @@ urlpatterns = [
     
     path('chatapp/talk/', chatapp_talk, name="chatapp_talk"), # envoi une question sur le document mémorisé en cours (multi document non implémenté)
     path('chatapp/enhance/', chatapp_enhance, name="chatapp_enhance"), # envoi une question sur le document mémorisé en cours (multi document non implémenté)
+    
+    path('chatapp/get_conversation/', chatapp_get_conversation, name="chatapp_get_conversation"), # envoi une question sur le document mémorisé en cours (multi document non implémenté)
+    
     path('chatapp/word/', chatapp_word, name="chatapp_word"), # envoi une question sur le document mémorisé en cours (multi document non implémenté)
     path('chatapp/sommaire/', chatapp_sommaire, name="chatapp_sommaire"), # envoi une question sur le document mémorisé en cours (multi document non implémenté)
     
