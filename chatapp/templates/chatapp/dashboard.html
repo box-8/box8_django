@@ -3,6 +3,23 @@
 {% block css %}
   <link rel="stylesheet" href="{% static 'css/chat.css' %}">
 {% endblock css %}
+{% block js %}
+<script>
+  var chatapp_memorize = '{% url 'chatapp:chatapp_memorize' %}'
+  var chatapp_delete_file = '{% url 'chatapp:chatapp_delete_file' %}'
+  var chatapp_ajax_analyses = '{% url 'chatapp:chatapp_ajax_analyses' %}'
+  var chatapp_ajax_delete_analyse = '{% url 'chatapp:chatapp_ajax_delete_analyse' %}'
+  var chatapp_ajax_fusion_pdf = '{% url 'chatapp:chatapp_ajax_fusion_pdf' %}'
+  var chroma_reset = '{% url 'chatapp:chroma_reset' %}'
+  var chatapp_upload = '{% url 'chatapp:chatapp_upload' %}'
+  var chatapp_ajax_set_analyse_url = '{% url 'chatapp:chatapp_ajax_set_analyse' %}'
+  var afficher_resume_vectorisation = '{% url "chatapp:afficher_resume_vectorisation" "0" "0" %}'
+</script>
+  <script src="{% static 'js/explorer.js' %}" ></script>
+
+
+  <script src="{% static 'js/map.js' %}" ></script>
+{% endblock js %}
 {% block title %}Analyse documentaire{% endblock title %}
 
 {% block content_left %}
@@ -268,439 +285,14 @@
   var fichier_courant ={"filename":""}
 
   $(document).ready(function () {
-    toastPosition = "top-left"
     
-    // vide les listes analyse ou fiches
-    function explorerEmpty(target){
-      $("#"+target).html("")
-    }
-
-    // remplit les listes analyses et fiches 
-    function explorerPopulate(target,json){
-      explorerEmpty(target)
-      console.log("explorerPopulate",json)
-      
-      $.each(json.entries, function (index, entry) {
-        let listItem = $("<a href='javascript:void(0);' class='list-group-item'>" + entry.caption + "</a>")
-        listItem.attr("id",entry.type+"-"+entry.id)
-
-        if(entry.type=="analyse"){
-          listItem.addClass("list-group-item-analyse")
-          listItem.click(function(){
-            $(".list-group-item-analyse").removeClass("active")
-            $(this).addClass("active")
-            dossier_analyse = entry.caption
-            // $("#fiches-tab").html("Dossier : " + entry.caption)
-            $("#fiches-panel-title").html(entry.caption)
-            chatapp_ajax_set_analyse(dossier_analyse)
-            ongletFichierEmpty()
-          });
-          listItem.on( "dblclick", function() {
-            $("#fiches-tab").click()
-          });
-          
-
-        }else if(entry.type=="new_analyse"){
-
-        }else{ // type = document
-          if (! entry.memorized) {listItem.addClass("list-group-item-warning");}
-          listItem.addClass("list-group-item-document")
-          // listItem.attr("title","double click pour charger les informations de la vectorisation")
-          listItem.click(function(){
-            ongletFichierEmpty()
-            fichier_courant.filename = entry.caption
-            fichier_courant.id = entry.type+"-"+entry.id
-            var capt = entry.caption
-            if(capt.length > 35){capt = entry.caption.substring(0, 35)+"..."}
-            // $("#fichier-tab").html(capt)
-            $("#fichier-panel-title").html(entry.caption)
-            chatapp_set_fiches(entry.parent_analyse) 
-            $("#viewer-iframe").click(function(){
-              url='/sharepoint/'+analyse_courante.username+'/'+ entry.parent_analyse+'/'+entry.caption
-              window.open(url, 'viewerIframe');
-            })
-
-            if (! entry.memorized) {
-              $(".list-group-item-document").removeClass("active")
-              //chatapp_memorize_doc(listItem, entry)
-              $.toast({heading: "Info",text: "Le document n'est pas vectorisé",position: toastPosition ,icon: "info", stack: true})
-              $("#fichier-tab").click()
-            }else{
-              // $(this).toggleClass("active")
-              $(".list-group-item-document").removeClass("active")
-              $(this).addClass("active")
-              chatapp_get_fichedetails(entry)
-              
-            }
-          });
-          listItem.on( "dblclick", function() {
-            $("#fichier-tab").click()
-          });
-        }
-        $("#"+target).append(listItem);
-      });
-    }
-
-    
-    
-    
-    // stocke les fichiers sélectionnées dans analyse_courante.entries pour les poster au serveur 
-    function chatapp_set_fiches(analyse){
-      analyse_courante.analyse = analyse
-      // var additionalData = {"analyse":analyse, "entries":[]}
-      var newEntries = []
-      $("#explorer_fiches .active").each(function(){
-        newEntries.push($(this).html())
-      })
-      analyse_courante.entries = newEntries;
-      return false
-    }
 
 
-    // fonction commune $("#viewer-vectoriser").click et $("#viewer-delete").click
-    function get_fichier_courant(){
-      if (fichier_courant.filename==""){
-        $.toast({heading: "Erreur",text: "Choisir un fichier",position: toastPosition,icon: "warning", stack: true}) 
-        return false
-      }
-      var listItem = $(".list-group-item-document:contains('"+ fichier_courant.filename +"')");
-      if (listItem.length !=1){
-        console.log("Erreur")
-        return false
-      }
-      var entry = {}
-      entry.parent_analyse = analyse_courante.analyse
-      entry.caption = fichier_courant.filename
-      entry.memorized= !listItem.hasClass("list-group-item-warning")
-      entry.type = "document"
-      
-      var return_object={}
-      return_object.entry = entry
-      return_object.listItem = listItem
-      return return_object
-    }
 
-    $("#viewer-vectoriser").click(function(){
-      curfile = get_fichier_courant()
-      if (curfile===false){
-        $.toast({heading: "Erreur",text: "Choisir un fichier",position: toastPosition,icon: "danger", stack: true})
-      }else{
-        console.log("OK memorize", curfile)
-        chatapp_memorize_doc(curfile.listItem, curfile.entry)
-      }
-      
-    })
-    
-    // lance la vectorisation d'un document en async
-    function chatapp_memorize_doc(listItem, entry){
-      analyse_courante.analyse = entry.parent_analyse
-      analyse_courante.entries = [entry.caption]
-      console.log("chatapp_memorize_doc",analyse_courante)
-      var confirmation = confirm("Êtes-vous sûr de vouloir vectoriser le document, l'opération peut prendre un certain temps ?");
-      if (confirmation) {
-        chatapp_memorize_doc_ajax(listItem, entry)
-      }
-    }
-
-    function chatapp_memorize_doc_ajax(listItem, entry){
-      $.ajax({
-        url: '{% url 'chatapp:chatapp_memorize' %}',
-        type: 'POST',
-        data: JSON.stringify(analyse_courante), 
-        contentType: 'application/json', 
-        beforeSend: function(xhr, settings){
-          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-        },
-        success: function (response) {
-          $.toast({heading: "résumé réalisé",text: "le résumé est disponible dans l'onglet Fichier",position: toastPosition,icon: response.state, stack: true,hideAfter: 5000})
-          if(listItem !== undefined){listItem.removeClass("list-group-item-warning")}
-          if(entry !== undefined){entry.memorized = true}
-          
-          html = marked.parse(response.content)
-          $("#filedetails").html(html)
-          console.log(response);
-          chatapp_ajax_set_analyse(analyse_courante.analyse)
-        },
-        error: function () {
-        }
-      });
-    }
-
-    $("#viewer-delete").click(function(){
-      curfile = get_fichier_courant()
-      if (curfile===false){
-        $.toast({heading: "Erreur",text: "Choisir le fichier à effacer",position: toastPosition,icon: "danger", stack: true})
-      }else{
-        console.log("OK delete", curfile)
-        chatapp_delete_doc(curfile.listItem, curfile.entry)
-      }
-
-    });
-    
-    function chatapp_delete_doc(listItem, entry){
-      analyse_courante.analyse = entry.parent_analyse
-      analyse_courante.entries = [entry.caption]
-      var confirmation = confirm("Êtes-vous sûr de vouloir supprimer le document ? \n"+ entry.caption);
-      if (confirmation) {
-        $.ajax({
-          url: '{% url 'chatapp:chatapp_delete_file' %}',
-          type: 'POST',
-          data: JSON.stringify(analyse_courante), 
-          contentType: 'application/json', 
-          beforeSend: function(xhr, settings){
-            xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-          },
-          success: function (response) {
-            console.log(response);
-            explorerPopulate("explorer_fiches",response)
-            ongletFichierEmpty()
-          },
-          error: function () {
-            ongletFichierEmpty()
-          }
-        });
-      }
-    }
 
     
 
-    function ongletFichierEmpty(){
-      $("#fichier-tab").html("Fichier")
-      $("#fichier-panel-title").html("")
-      $("#filedetails").html("Pas de contenu, sélectionner un fichier dans l'onglet Analyse")
-    }
-    
-
-    // obtient le détail du dernier fichier séléctionné
-    function chatapp_get_fichedetails(entry){
-      analyse_courante.analyse = entry.parent_analyse
-      analyse_courante.entries = [entry.caption]
-      var url = '{% url "chatapp:afficher_resume_vectorisation" "0" "0" %}'.replace('0', entry.parent_analyse).replace('0', entry.caption);
-      $.ajax({
-        url: url,
-        type: 'POST',
-        data: JSON.stringify(analyse_courante), 
-        contentType: 'application/json', 
-        beforeSend: function(xhr, settings){
-          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-        },
-        success: function (response) {
-          $("#filedetails").html(response.content)
-          
-          if(Object.keys(response.json).length === 0){
-            $("#prompt-json-conversation").hide()
-          }else{
-            $("#prompt-json-conversation").show().addClass("btn-outline-success")
-          }
-          if(response.state == "warning"){
-            $.toast({heading: "Info", text: "Le résumé du document n'existe pas, lancer la procédure dans l'onglet Fichier.", position: toastPosition, icon: response.state, stack: true,hideAfter: 7000 })
-          
-          }else{
-            $.toast({heading: "Info", text: "Le résumé du document vectorisé est affiché dans l'ongle l'onglet Fichier.", position: toastPosition, icon: response.state, stack: true,hideAfter: 7000 })
-          
-          }
-
-
-
-          console.log(response);
-        },
-        error: function () {
-        }
-      });
-    }
-    $('#viewer-showdetails').click(function(){
-      $(this).toggleClass("btn-info")
-      
-    });
-    
-
-    // liste les dossiers d'analyses de l'utilisateur
-    function explorer_analyses(){
-      $.ajax({
-        url: '{% url 'chatapp:chatapp_ajax_analyses' %}',
-        type: 'GET',
-        beforeSend: function(){
-        },
-        success: function(response) {
-          analyse_courante.username = response.username
-          explorerPopulate("explorer_analyses",response)
-        },
-        error: function() {
-        }
-      });
-    }
-    // initialisation de la iste des analyse au chargement de la page
-    explorer_analyses()
-
-    
-    $("#btn_modal_open_delete_analyse").click(function () {
-      if(analyse_courante.analyse==""){
-        $.toast({
-          heading: "Upload de fichiers",
-          text: "Choisir le dossier d'analyse à supprimer",
-          position: 'top-left',
-          icon: 'warning', // Type of toast icon
-          stack: false
-        })
-        return false
-      }else{
-        var confirmation = confirm("Êtes-vous sûr de vouloir supprimer ce dossier d'analyse et son contenu ?");
-        if (confirmation) {
-          $.ajax({
-            url: '{% url 'chatapp:chatapp_ajax_delete_analyse' %}',
-            type: 'POST',
-            data: JSON.stringify(analyse_courante), 
-            contentType: 'application/json', 
-            beforeSend: function(xhr, settings){
-              xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-            },
-            success: function (response) {
-                explorerPopulate("explorer_analyses",response)
-                explorerEmpty("explorer_fiches")
-                console.log(response);
-            },
-            error: function () {
-            }
-          });
-        }else{
-          console.log("opération annulée : chatapp_ajax_delete_analyse")
-        }
-      }
-      
-    });
-
-    $("#btn_modal_open_upload").click(function () {
-      if(analyse_courante.analyse==""){
-        $.toast({
-          heading: "Upload de fichiers",
-          text: "Choisir un dossier d'analyse",
-          position: 'top-left',
-          icon: 'error', // Type of toast icon
-          stack: false
-        })
-        return false
-      }
-      $("#span_upload_dir").html("Dossier d'Analyse <b class='text-info'>" + analyse_courante.analyse+"</b>");
-      $("#modal_upload_files").modal('show');
-    });
-
-
-    $("#btn_fusion_pdf").click(function () {
-      console.log("btn_fusion_pdf", analyse_courante)
-      
-      $.ajax({
-        url: '{% url 'chatapp:chatapp_ajax_fusion_pdf' %}',
-        type: 'POST',
-        data:analyse_courante,
-        beforeSend: function(xhr, settings){
-          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-        },
-        success: function(response) {
-          console.log(response)
-          explorerPopulate("explorer_fiches",response)
-        },
-        error: function() {
-        }
-      });
-    });
-    $("#chroma_reset").click(function () {
-      console.log("chroma_reset", analyse_courante)
-      
-      $.ajax({
-        url: '{% url 'chatapp:chroma_reset' %}',
-        type: 'POST',
-        data:analyse_courante,
-        beforeSend: function(xhr, settings){
-          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-        },
-        success: function(response) {
-          console.log(response)
-          $.toast({heading: "Info",text:response.message})
-        },
-        error: function() {
-        }
-      });
-    });
-    
-
-    $('#upload-form').submit(function (e) {
-        var form = $(this)
-        e.preventDefault();
-        var formData = new FormData(this);
-        formData.append("analyse",analyse_courante.analyse)
-        $.ajax({
-            url: '{% url 'chatapp:chatapp_upload' %}', 
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function (response) {
-              form[0].reset()
-              explorerPopulate("explorer_fiches",response)
-              $("#modal_upload_files").modal('hide');
-            },
-            error: function (error) {
-              console.log(error);
-            }
-        });
-    });
-
-    $("#btn_modal_open_new_analyse").click(function(){
-      $("#modal_new_analyse").modal('show');
-    });
-    
-
-    $('#new-analyse-form').submit(function (e) {
-      var form = $(this)
-      e.preventDefault();
-      var new_analyse_name = $("#new_analyse_name").val();
-      if(new_analyse_name==""){return false} 
-      $.ajax({
-          type: "POST",
-          url: "{% url 'chatapp:chatapp_ajax_new_analyse' %}",
-          data: JSON.stringify({'analyse': new_analyse_name}),
-          contentType: 'application/json',
-          beforeSend: function(xhr, settings){
-            xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-          },
-          success: function (response) {
-            form[0].reset()
-            explorerPopulate("explorer_analyses",response)
-            $("#modal_new_analyse").modal('hide');
-
-          },
-          error: function (error) {
-              console.log(error);
-          }
-      });
-    });
-
-    
-    
-    
-    // liste les dossiers d'analyses de l'utilisateur
-    function chatapp_ajax_set_analyse(analyse){
-      analyse_courante.analyse = analyse
-      analyse_courante.entries=[]
-      $.ajax({
-        url: '{% url 'chatapp:chatapp_ajax_set_analyse' %}',
-        type: 'POST',
-        data:analyse_courante,
-        beforeSend: function(xhr, settings){
-          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-        },
-        success: function(response) {
-          explorerPopulate("explorer_fiches",response)
-        },
-        error: function() {
-        }
-      });
-    }
-
-    
-    
-
-    // sauvegarde la conversation sélectionnée
+    // reprend la conversation sélectionnée
     $("#prompt-json-conversation").click(function(){
       $.ajax({
         url: '{% url 'chatapp:chatapp_get_conversation' %}',
@@ -709,7 +301,7 @@
         contentType: 'application/json', 
         beforeSend: function(xhr, settings){
           xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-          
+          $('#prompt-clear').click()
         },
         success: function(response) {
             console.log(response.conversation);
@@ -749,21 +341,15 @@
 
     function ConversationArray(getType){
       var conversationArray = [];
-
       var allConversations = $('#conversation .row');
       // Sélectionner toutes les paires de question et réponse
       allConversations.each(function() {
           var question = $(this).find('.alert-info').text().trim();  // Récupérer le texte de la question
-          
           if(getType == "text"){
             var answer = $(this).next('.row').find('.alert-warning').text().trim();  // Récupérer le texte de la réponse
-          
           }else{
             var answer = $(this).next('.row').find('.alert-warning').html();  // Récupérer le texte de la réponse
-          
           }
-          
-
           // Ajouter à l'array si à la fois question et réponse existent
           if (question && answer) {
               conversationArray.push([question, answer]);
@@ -771,6 +357,68 @@
       });
       return conversationArray
     }
+
+    function setSommaire(response){
+      $.each(response, function(index, QA) {
+        let qa = newQA()
+        qa.prepend(newPrompt(QA.title, "info"))
+        qa.append(newPrompt(marked.parse(QA.description), "warning")) 
+      });
+    }
+    function newQA(){
+      qa = $("<div class='container'></div>")
+      $("#conversation").prepend(qa)
+      return qa
+    }
+    function newPrompt(p, className="success"){
+      var component = $("<div class='row'></div>")
+      var component_text = $("<div class='col-11 alert alert-"+className+"'>"+p+"</div>")
+      var component_toolbar = $("<div class='col-12 input-group'></div>")
+      component.prepend(component_text)
+      component.append(component_toolbar)
+      
+      var Col=$("<div class='col-1'></div>")
+      if (className!="info"){ // llm
+        var component_tool = $("<input type='text' class='form-control'></input>")
+        component_tool.keypress(function(event) {
+          if (event.which === 13) {
+            event.preventDefault();
+            chatapp_enhance($(this), component_text);
+          }
+        });
+        
+        var component_tool0 = $("<button class='btn btn-outline-secondary'>Send</button>")
+        component_tool0.click(function(event) {
+          chatapp_enhance(component_tool, component_text);
+        });
+        var component_tool1 = $("<button class='btn btn-outline-secondary'>Delete</button>")
+        component_tool1.click(function(event) {
+          component.parent().remove()
+        });
+        var component_tool2 = $("<button class='btn btn-outline-secondary'>Select</button>")
+        component_tool2.click(function(event) {
+          component_text.toggleClass("alert-info").toggleClass("alert-danger");
+        });
+        component_toolbar.prepend(component_tool, component_tool0, component_tool1,component_tool2)
+
+        component.append(Col)
+      }else{
+        component.prepend(Col)
+      }
+      return component
+    }
+    $('#prompt-send').click(function(event) {
+      chatapp_talk() 
+    });
+    $('#prompt-clear').click(function(event) {
+       $("#conversation").html("")
+    });
+    $('#prompt').keypress(function(event) {
+      if (event.which === 13) {
+        event.preventDefault();
+        chatapp_talk();
+      }
+    });
 
     /* Fonctionnalités de chat */
     function chatapp_talk(){
@@ -832,20 +480,12 @@
             console.log(e);
         }
       });
-
     }
     
-    function setSommaire(response){
-      $.each(response, function(index, QA) {
-        let qa = newQA()
-        qa.prepend(newPrompt(QA.title, "info"))
-        qa.append(newPrompt(marked.parse(QA.description), "warning")) 
-      });
-    }
+    
 
     $("#prompt-sommaire").click(function(){
       question = $('#prompt').val()
-
       if(question ==""){
         return false
       }
@@ -857,7 +497,6 @@
         contentType: 'application/json', 
         beforeSend: function(xhr, settings){
           xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-          
         },
         success: function(response) {
             console.log(response);
@@ -867,76 +506,30 @@
             console.log(e);
         }
       });
-    })
-
-
-
-    function newQA(){
-      qa = $("<div class='container'></div>")
-      $("#conversation").prepend(qa)
-      return qa
-    }
-    function newPrompt(p, className="success"){
-
-      var component = $("<div class='row'></div>")
-      var component_text = $("<div class='col-11 alert alert-"+className+"'>"+p+"</div>")
-      var component_toolbar = $("<div class='col-12 input-group'></div>")
-      component.prepend(component_text)
-      component.append(component_toolbar)
-      
-      var Col=$("<div class='col-1'></div>")
-      
-
-      if (className!="info"){ // llm
-        var component_tool = $("<input type='text' class='form-control'></input>")
-        component_tool.keypress(function(event) {
-          if (event.which === 13) {
-            event.preventDefault();
-            chatapp_enhance($(this), component_text);
-          }
-        });
-        
-        var component_tool0 = $("<button class='btn btn-outline-secondary'>Send</button>")
-        component_tool0.click(function(event) {
-          chatapp_enhance($(this), component_text);
-        });
-        var component_tool1 = $("<button class='btn btn-outline-secondary'>Delete</button>")
-        component_tool1.click(function(event) {
-          component.parent().remove()
-        });
-        var component_tool2 = $("<button class='btn btn-outline-secondary'>Select</button>")
-        component_tool2.click(function(event) {
-          component_text.toggleClass("alert-info").toggleClass("alert-danger");
-        });
-        component_toolbar.prepend(component_tool, component_tool0, component_tool1,component_tool2)
-
-        component.append(Col)
-      }else{
-        // component_tool = $("<button class='btn btn-success'>Supprimer</button>")
-        // component_toolbar.append(component_tool)
-        component.prepend(Col)
-      }
-      
-      // component = $("<div class='row'>"+Col+"<div class='col-11 alert alert-"+className+"'>"+p+"</div></div>")
-      return component
-    }
-    $('#prompt-send').click(function(event) {
-      chatapp_talk() 
-    });
-    $('#prompt-clear').click(function(event) {
-       $("#conversation").html("")
-    });
-    
-
-    $('#prompt').keypress(function(event) {
-      if (event.which === 13) {
-        event.preventDefault();
-        chatapp_talk();
-      }
     });
 
 
   });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -997,12 +590,25 @@
   });
 
 
+
   // Global functions
   function getCookie(name) {
       const cookieValue = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
       return cookieValue ? cookieValue.pop() : '';
   }
 </script>
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

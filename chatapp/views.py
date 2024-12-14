@@ -513,6 +513,11 @@ def chatapp_talk(request):
         try:
             history=[]
             response, conversation_json  = chat(pdf=pdf, question = awaited_result["prompt"], history = history, llm=llm)
+            if prompt=="map_plot_pdf":
+                jsonpath = pdf+".map.json"
+                save_json(jsonpath, conversation_json)
+            
+            
             #donnees_json = json.loads(response) # Analyser la chaîne JSON en un objet Python
             return JsonResponse(response) # on renvoie la réponse JsonResponse avec les données JSON
 
@@ -623,11 +628,14 @@ def generer_document_word(donnees, nom_fichier="document_genere.docx"):
     
     # Enregistre l'objet JSON dans un fichier
     nom_fichier_json = nom_fichier + ".json"
-    with open(nom_fichier_json, "w", encoding="utf-8") as f:
-        json.dump(conversation_json, f, indent=4, ensure_ascii=False)
-
+    save_json(nom_fichier_json, conversation_json)
     print(f"Conversation sauvegardée en JSON : {nom_fichier_json}")
-    
+
+
+def save_json(jsonpath, jsontext):
+     with open(jsonpath, "w", encoding="utf-8") as f:
+        json.dump(jsontext, f, indent=4, ensure_ascii=False)
+
     
 def chatapp_word(request):
     analyse, entries, prompt, history, llm, pdf, data = gen_request(request=request)
