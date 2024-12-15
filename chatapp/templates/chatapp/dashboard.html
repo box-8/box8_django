@@ -394,6 +394,7 @@
       });
 
       qa.qToolbarDelete.click(function(event) {
+        conversationDeleteEntry(qa)
         
       });
 
@@ -401,7 +402,30 @@
       return qa
     }
 
-    
+    function conversationDeleteEntry(qa){
+      analyse_courante.prompt = qa.qHtml.html()
+      console.log(analyse_courante)
+      
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_delete_conversation_entry' %}',
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+        },
+        success: function(response) {
+            console.log(response);
+            $.toast({heading: response.state,text:response.content})
+            qa.remove()
+        },
+        error: function(e) {
+          alert("error")
+          console.log(e);
+        }
+      });
+
+    }
 
     function chatapp_talk_new(){
       question = $('#prompt').val()

@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
 from lorem_text import lorem
-from box8.ChatAgent import chat, chat_enhance, chat_memorize, chat_sommaire
+from box8.ChatAgent import chat, chat_enhance, chat_memorize, chat_sommaire, delete_entry
 from box8.utils_pdf import PdfUtils
 
 import markdown
@@ -551,9 +551,13 @@ def chatapp_sommaire(request):
 
 
 
-
-
-
+def chatapp_delete_conversation_entry(request):
+    analyse, entries, prompt, history, llm, pdf, data = gen_request(request=request)
+    
+    delete_entry(pdf, prompt)
+    response_data = build_talk_response(f"Entrée effacée de l'historique : {prompt}","danger")
+    return JsonResponse(response_data)
+    
 
 
 
@@ -564,7 +568,7 @@ def chatapp_enhance(request):
     originalQuestion = data.get('originalQuestion', '') # question initiale
     llm_debug = request.session.get('llm_debug', False)
     
-    print(history)
+    # print(history)
     
     if llm_debug:
         pass

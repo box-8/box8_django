@@ -428,6 +428,45 @@ def save_history(pdf, history=None, question="", response=""):
     return conversation_json
 
 
+def delete_entry(pdf, title_to_delete):
+    # Le nom du fichier JSON basé sur le nom de `pdf`
+    nom_fichier_json = f"{pdf}.json"
+
+    # Vérifie si le fichier existe
+    if not os.path.exists(nom_fichier_json):
+        print(f"Le fichier {nom_fichier_json} n'existe pas.")
+        return None
+
+    # Lit le contenu existant du fichier
+    try:
+        with open(nom_fichier_json, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            conversation = data.get("conversation", [])
+    except json.JSONDecodeError:
+        print(f"Erreur de lecture du fichier {nom_fichier_json}.")
+        return None
+
+    # Filtre les conversations pour exclure l'entrée avec le `title` donné
+    conversation_updated = [item for item in conversation if item["title"] != title_to_delete]
+
+    # Vérifie si une entrée a été supprimée
+    if len(conversation) == len(conversation_updated):
+        print(f"Aucune entrée trouvée avec le titre : {title_to_delete}")
+        return None
+
+    # Structure JSON finale mise à jour
+    conversation_json = {
+        "conversationPath": nom_fichier_json,
+        "conversation": conversation_updated
+    }
+
+    # Écrit le contenu mis à jour dans le fichier
+    with open(nom_fichier_json, "w", encoding="utf-8") as f:
+        json.dump(conversation_json, f, indent=4, ensure_ascii=False)
+
+    print(f"Entrée avec le titre '{title_to_delete}' supprimée du fichier : {nom_fichier_json}")
+
+    return conversation_json
 
     
     
