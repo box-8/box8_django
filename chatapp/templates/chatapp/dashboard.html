@@ -17,8 +17,12 @@
 </script>
   <script src="{% static 'js/explorer.js' %}" ></script>
 
-
+<script>
+  var chatapp_talk = '{% url 'chatapp:chatapp_talk' %}'
+</script>
   <script src="{% static 'js/map.js' %}" ></script>
+
+
 {% endblock js %}
 {% block title %}Analyse documentaire{% endblock title %}
 
@@ -281,132 +285,22 @@
 
 <!-- Script gestion dossiers analyse et upload fichiers -->
 <script>
-  var analyse_courante = {"username":"","analyse":"","entries":[],"prompt":""} 
+  var analyse_courante = {"username":"","analyse":"","entries":[],"prompt":"", "history":[]} 
   var fichier_courant ={"filename":""}
 
+  const turndownService = new TurndownService({ headingStyle: 'atx' });;
+
+
   $(document).ready(function () {
-    
-
-
-
-
-    
-
-    // reprend la conversation sélectionnée
-    $("#prompt-json-conversation").click(function(){
-      $.ajax({
-        url: '{% url 'chatapp:chatapp_get_conversation' %}',
-        type: 'POST',
-        data: JSON.stringify(analyse_courante), 
-        contentType: 'application/json', 
-        beforeSend: function(xhr, settings){
-          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-          $('#prompt-clear').click()
-        },
-        success: function(response) {
-            console.log(response.conversation);
-            setSommaire(response.conversation.reverse())
-        },
-        error: function(e) {
-            console.log(e);
-        }
-      });
-      
-    })
-
-    $("#prompt-word").click(function(){
-      analyse_courante.history = ConversationArray("html")
-      let nom = prompt("Entrez le nom du fichier que vous souhaiter générer :", "Fichier Word");
-      analyse_courante.prompt=nom
-      console.log(analyse_courante)
-      $.ajax({
-        url: '{% url 'chatapp:chatapp_word' %}',
-        type: 'POST',
-        data: JSON.stringify(analyse_courante), 
-        contentType: 'application/json', 
-        beforeSend: function(xhr, settings){
-          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-          
-        },
-        success: function(response) {
-            console.log(response);
-            $.toast({heading: "Info",text:response.content})
-        },
-        error: function(e) {
-            console.log(e);
-        }
-      });
-    })
-
-
-    function ConversationArray(getType){
-      var conversationArray = [];
-      var allConversations = $('#conversation .row');
-      // Sélectionner toutes les paires de question et réponse
-      allConversations.each(function() {
-          var question = $(this).find('.alert-info').text().trim();  // Récupérer le texte de la question
-          if(getType == "text"){
-            var answer = $(this).next('.row').find('.alert-warning').text().trim();  // Récupérer le texte de la réponse
-          }else{
-            var answer = $(this).next('.row').find('.alert-warning').html();  // Récupérer le texte de la réponse
-          }
-          // Ajouter à l'array si à la fois question et réponse existent
-          if (question && answer) {
-              conversationArray.push([question, answer]);
-          }
-      });
-      return conversationArray
-    }
 
     function setSommaire(response){
       $.each(response, function(index, QA) {
-        let qa = newQA()
-        qa.prepend(newPrompt(QA.title, "info"))
-        qa.append(newPrompt(marked.parse(QA.description), "warning")) 
+        let qa = NewQA(QA.title)
+        qa.response(marked.parse(QA.description))
+        $("#conversation").prepend(qa)
       });
     }
-    function newQA(){
-      qa = $("<div class='container'></div>")
-      $("#conversation").prepend(qa)
-      return qa
-    }
-    function newPrompt(p, className="success"){
-      var component = $("<div class='row'></div>")
-      var component_text = $("<div class='col-11 alert alert-"+className+"'>"+p+"</div>")
-      var component_toolbar = $("<div class='col-12 input-group'></div>")
-      component.prepend(component_text)
-      component.append(component_toolbar)
-      
-      var Col=$("<div class='col-1'></div>")
-      if (className!="info"){ // llm
-        var component_tool = $("<input type='text' class='form-control'></input>")
-        component_tool.keypress(function(event) {
-          if (event.which === 13) {
-            event.preventDefault();
-            chatapp_enhance($(this), component_text);
-          }
-        });
-        
-        var component_tool0 = $("<button class='btn btn-outline-secondary'>Send</button>")
-        component_tool0.click(function(event) {
-          chatapp_enhance(component_tool, component_text);
-        });
-        var component_tool1 = $("<button class='btn btn-outline-secondary'>Delete</button>")
-        component_tool1.click(function(event) {
-          component.parent().remove()
-        });
-        var component_tool2 = $("<button class='btn btn-outline-secondary'>Select</button>")
-        component_tool2.click(function(event) {
-          component_text.toggleClass("alert-info").toggleClass("alert-danger");
-        });
-        component_toolbar.prepend(component_tool, component_tool0, component_tool1,component_tool2)
-
-        component.append(Col)
-      }else{
-        component.prepend(Col)
-      }
-      return component
-    }
+    
     $('#prompt-send').click(function(event) {
       chatapp_talk() 
     });
@@ -422,11 +316,99 @@
 
     /* Fonctionnalités de chat */
     function chatapp_talk(){
+      chatapp_talk_new()
+    }
+
+
+    function ConversationArray(getType){
+      var conversationArray = [];
+      var allConversations = $('#conversation .container');
+      // Sélectionner toutes les paires de question et réponse
+      allConversations.each(function() {
+          var question = $(this).find('.alert-info').text().trim();  // Récupérer le texte de la question
+          var answer = $(this).find('.alert-warning').html();  // Récupérer le texte de la réponse
+          
+          if(getType == "text"){
+            answer = turndownService.turndown(answer);
+          }else{
+          }
+          // Ajouter à l'array si à la fois question et réponse existent
+          if (question && answer) { 
+              conversationArray.push([question, answer]);
+          }
+      });
+      console.log(conversationArray)
+      return conversationArray
+    }
+
+    function NewQA(prompt){
+      let Col=$("<div class='col-1'></div>")
+      let qa = $("<div class='container'></div>")
+      
+      qa.qRow = $("<div class='row'></div>")
+      qa.qHtml = $("<div class='col-11 alert alert-info'>"+prompt+"</div>")
+      qa.qToolbarRow = $("<div class='row p-2'></div>")
+      qa.qToolbar = $("<div class='col-12 input-group qa-response'></div>").hide()
+      qa.qToolbarInput = $("<input type='text' class='form-control'></input>")
+      qa.qToolbarSend = $("<button class='btn btn-outline-secondary'>Send</button>")
+      qa.qToolbarDelete = $("<button class='btn btn-outline-secondary'>Delete</button>")
+      qa.qToolbarSelect = $("<button class='btn btn-outline-secondary'>Select</button>").hide()
+      
+      qa.append(qa.qRow)
+      qa.qRow.append(Col, qa.qHtml)
+      
+      qa.append(qa.qToolbarRow)
+      qa.qToolbarRow.append(qa.qToolbar)
+      qa.qToolbar.append(qa.qToolbarInput, qa.qToolbarSend, qa.qToolbarDelete, qa.qToolbarSelect )
+      
+      // answers
+      qa.aRow = $("<div class='row'></div>").hide()
+      qa.aHtml = $("<div class='col-11 alert alert-warning'></div>")
+      
+      qa.append(qa.aRow)
+      qa.aRow.append(qa.aHtml)
+
+
+      qa.response = function(value){
+        qa.aHtml.html(value)
+        qa.aRow.slideDown()
+      }
+
+      qa.qToolbarSend.click(function(event) {
+        chatapp_enhance(qa, qa.qToolbarInput, qa.aHtml);
+      });
+      qa.qToolbarInput.keypress(function(event) {
+        if (event.which === 13) {
+          event.preventDefault();
+          chatapp_enhance(qa, qa.qToolbarInput, qa.aHtml);
+        }
+      });
+
+      qa.qRow.click(function(event) {
+        $(".qa-response").hide()
+        qa.qToolbar.toggle()
+      });
+
+      qa.aHtml.click(function(event) {
+        qa.aHtml.toggleClass("alert-warning").toggleClass("alert-danger");
+      });
+
+      qa.qToolbarDelete.click(function(event) {
+        
+      });
+
+
+      return qa
+    }
+
+    
+
+    function chatapp_talk_new(){
       question = $('#prompt').val()
       if(question==""){return false}
       analyse_courante.prompt=question
       analyse_courante.history = ConversationArray("text")
-      const qa = newQA();
+      let qa = NewQA(question);
       $.ajax({
         url: '{% url 'chatapp:chatapp_talk' %}',
         type: 'POST',
@@ -434,16 +416,16 @@
         contentType: 'application/json', 
         beforeSend: function(xhr, settings){
           xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-          qa.prepend(newPrompt(question, "info"))
+          $("#conversation").prepend(qa)
           $('#prompt').val("")
         },
         success: function(response) {
             html = marked.parse(response.content)
-            qa.append(newPrompt(html, response.state))
+            qa.response(html)
             console.log(response);
         },
         error: function(e) {
-            qa.prepend(newPrompt('Une erreur s\'est produite.', response.state))
+            $.toast({heading: response.state,text:response.content})
             $('#prompt').val(question)
             console.log(e);
         }
@@ -451,15 +433,20 @@
 
     }
 
+
+
     /* Fonctionnalités de chat : on développe la réponse donnée */
-    function chatapp_enhance(divQuestion, divWarning){
-      question = divQuestion.val()
-      originalText = divWarning.text()
+    function chatapp_enhance(qa){
+      
+      let question = qa.qToolbarInput.val()
+      let originalText = turndownService.turndown(qa.aHtml.html());
+      
       if(question==""){return false}
       analyse_courante.prompt=question
       analyse_courante.history = ConversationArray("text")
       analyse_courante.originalText = originalText;
-
+      analyse_courante.originalQuestion = qa.qHtml.html();
+      
       $.ajax({
         url: '{% url 'chatapp:chatapp_enhance' %}',
         type: 'POST',
@@ -467,12 +454,12 @@
         contentType: 'application/json', 
         beforeSend: function(xhr, settings){
           xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-          divQuestion.val("")
-          divWarning.parent().append($("<p class='alert alert-secondary' >"+question+"</p>"))
+          qa.qToolbarInput.val("")
+          qa.aHtml.parent().append($("<p class='alert alert-secondary' >"+question+"</p>"))
         },
         success: function(response) {
             html = marked.parse(response.content)
-            divWarning.html(html)
+            qa.aHtml.html(html)
             console.log(response);
         },
         error: function(e) {
@@ -509,17 +496,59 @@
     });
 
 
+
+
+
+    
+
+    // reprend la conversation sélectionnée
+    $("#prompt-json-conversation").click(function(){
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_get_conversation' %}',
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          $('#prompt-clear').click()
+        },
+        success: function(response) {
+            console.log(response.conversation);
+            setSommaire(response.conversation)
+        },
+        error: function(e) {
+            console.log(e);
+        }
+      });
+      
+    })
+
+    $("#prompt-word").click(function(){
+      analyse_courante.history = ConversationArray("html")
+      let nom = prompt("Entrez le nom du fichier que vous souhaiter générer :", "Fichier Word");
+      analyse_courante.prompt=nom
+      console.log(analyse_courante)
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_word' %}',
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          
+        },
+        success: function(response) {
+            console.log(response);
+            $.toast({heading: "Info",text:response.content})
+        },
+        error: function(e) {
+            console.log(e);
+        }
+      });
+    })
+
+
   });
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -591,139 +620,8 @@
 
 
 
-  // Global functions
-  function getCookie(name) {
-      const cookieValue = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-      return cookieValue ? cookieValue.pop() : '';
-  }
-</script>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  <!-- Script actions sur carte interactive -->
-  <script>
-
-    const posNaldeo = [45.76316281678944, 4.860897385287324]
-    var map = {}
-    var markers = []
-    var markerGroup = new L.featureGroup()
-    
-  function map_plot_doc(filetype){
-    analyse_courante.prompt="map_plot_"+filetype
-    
-    $.ajax({
-      url: '{% url 'chatapp:chatapp_talk' %}',
-      type: 'POST',
-      data: JSON.stringify(analyse_courante), 
-      contentType: 'application/json', 
-      beforeSend: function(xhr, settings){
-        xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-        $("#carte-tab").click()
-        $.toast({heading: "Info",text: "Extraction des informations de géolocalisation en cours ...",position: toastPosition,icon: "info", stack: true})
-      },
-      success: function(response) {
-        console.log(response) 
-        plot_response(response)
-      },
-      error: function(e) {
-        
-      }
-    });
-  }
-
-  function plot_response(json_plot){
-    var filename = json_plot.filename
-    var summary = json_plot.summary
-    console.log(json_plot.infos_geographiques)
-    json_plot.infos_geographiques.forEach(function(markerData, index) {
-      // console.log(markerData)
-      let latlng = [markerData.lat,markerData.lng]
-      //let marker = L.marker(latlng).addTo(map);
-      let marker = L.marker(latlng)
-      let popup = L.popup().setLatLng(latlng).setContent("<b>"+markerData.title+"</b><br>"+markerData.contexte+"<br>page : "+markerData.page) // .openOn(map);
-      marker.bindPopup(popup)
-      marker.on('dragend', function (event) {
-        let position = this.getLatLng();
-        this.bindPopup(popup)
-        $.toast({heading: "Info",text: "Marker déplacé à : " + position.lat + ',' + position.lng ,position: toastPosition,icon: "info", stack: true})
-      });
-      // markers.push(marker)
-      marker.addTo(markerGroup)
-    });
-    map.addLayer(markerGroup);
-    map.fitBounds(markerGroup.getBounds());
-  }
-  function clearMarkers() {
-    if (markerGroup) {
-        markerGroup.clearLayers();
-    }
-    $.toast({heading: "Info", text: "Tous les marqueurs ont été supprimés.", position: "top-right", icon: "info", stack: true});
-}
-
-    $(document).ready(function () {
-
-      $("#plot-clear").on("click", function() {
-        clearMarkers()
-      });
-      $("#plot-doc").on("click", function() {
-        map_plot_doc("pdf")
-      });
-      $("#plot-sumup").on("click", function() {
-        map_plot_doc("txt")
-      });
-      
-      $("#carte-tab").on("click", function() {
-        var btn = $(this)
-        if (btn.hasClass("text-info")){
-        }else{
-          btn.addClass("text-info")
-          setTimeout(function() {initmap()}, 500);
-        }
-      });
-
-      function initmap(){
-        map = L.map('map').setView(posNaldeo, 12);
-        const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        }).addTo(map);
-        map.attributionControl.setPrefix('');
-      }
-
-      $("#map-mode").on("click", function() {
-        if ( this.innerHTML == 'mode consultation') {
-          this.innerHTML ='mode édition'
-        } else {
-          this.innerHTML ='mode consultation'
-        }
-        markerGroup.eachLayer(function(marker) {
-          if ( marker.dragging._enabled ) {
-            marker.dragging.disable();
-          } else {
-            marker.dragging.enable();
-          }
-        })
   
-      });   
-
-
-    });
-
-    
-  </script>
+</script>
 
 
 

@@ -1,4 +1,9 @@
 
+// Global functions
+function getCookie(name) {
+  const cookieValue = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+  return cookieValue ? cookieValue.pop() : '';
+}
 
 $(document).ready(function () {
     toastPosition = "top-left"

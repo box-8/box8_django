@@ -470,6 +470,7 @@ def getjson_conversation(json_conversation_path):
             json_conversation = json.load(f)
     else:
         json_conversation={}
+        
     return json_conversation
 
 
@@ -478,6 +479,7 @@ def chatapp_get_conversation(request):
     
     json_conversation_path = pdf+".json"
     response_data = getjson_conversation(json_conversation_path)
+    print(response_data)
     return JsonResponse(response_data)
 
 
@@ -489,18 +491,20 @@ def chatapp_get_conversation(request):
 def chatapp_talk(request):
     analyse, entries, prompt, history, llm, pdf, data = gen_request(request=request)
     
+    if not history:
+        history=[]
+    print(history)
     
     if request.session.get('llm_debug', False):
-        pdf = "llm_debug"
-        prompt = '\n\n'.join([lorem.paragraph() for _ in range(3)])
+        # pdf = "llm_debug"
+        # prompt = '\n\n'.join([lorem.paragraph() for _ in range(3)])
+        pass
         
     if len(entries)<1:
         response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
         return JsonResponse(response_data)
     
-    if not history:
-        history=[]
-    # print(history)
+    
     
     # s'agit-t-il d'un prompt préenregistré et quel est le format de réponse attendu (json / texte, ...)
     awaited_result = special_prompts(prompt) 
@@ -557,18 +561,19 @@ def chatapp_sommaire(request):
 def chatapp_enhance(request):
     analyse, entries, prompt, history, llm, pdf, data = gen_request(request=request)
     originalText = data.get('originalText', '') # texte a augmenter
+    originalQuestion = data.get('originalQuestion', '') # question initiale
     llm_debug = request.session.get('llm_debug', False)
     
+    print(history)
+    
     if llm_debug:
-        prompt = '\n\n'.join([lorem.paragraph() for _ in range(3)])
-        response_data = build_talk_response(f"chatapp_enhance : réponse à la question : {prompt}","warning")
-        return JsonResponse(response_data)
-        
+        pass
+         
     if len(entries)<1:
         response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
         return JsonResponse(response_data)
     
-    response, conversation_json = chat_enhance(originalText= originalText, pdf=pdf, question = prompt, history = history, llm=llm)
+    response, conversation_json = chat_enhance(originalQuestion = originalQuestion, originalText= originalText, pdf=pdf, question = prompt, history = history, llm=llm)
     response_data = build_talk_response(response,"warning", json=conversation_json)
     return JsonResponse(response_data)
 

@@ -10,7 +10,7 @@ from crewai_tools import (PDFSearchTool,
                           WebsiteSearchTool,
                           ScrapeWebsiteTool)
 from docx import Document
-
+from lorem_text import lorem
 
 
 
@@ -367,42 +367,80 @@ def chat_cctp_lots(pdf, question , history=None, llm="openai"):
 
 
 
+
+import os
+import json
+
 def save_history(pdf, history=None, question="", response=""):
     if history is None:
         history = []
+
+    # Le nom du fichier JSON basé sur le nom de `pdf`
+    nom_fichier_json = f"{pdf}.json"
+
+    # Lit le contenu existant du fichier s'il existe
     conversation = []
-    # Boucle à travers chaque entrée du tableau pour ajouter des chapitres
-    history.insert(0,[question, response])
-    for entree in history:
-        titre, contenu = entree  # Décompose l'entrée en titre et contenu
-        # Ajoute le titre comme un en-tête de niveau 1
-        conversation.append({"title":titre,"description": contenu})
-    
-    
-    conversation_json  = {
-        "conversationPath":pdf+".json",
+    if os.path.exists(nom_fichier_json):
+        with open(nom_fichier_json, "r", encoding="utf-8") as f:
+            try:
+                data = json.load(f)
+                conversation = data.get("conversation", [])
+            except json.JSONDecodeError:
+                conversation = []
+
+    # Dictionnaire pour vérifier si la question existe déjà
+    found = False
+    for item in conversation:
+        if item["title"] == question:
+            # Met à jour la réponse si la question existe déjà
+            item["description"] = response
+            found = True
+            break
+
+    # Si la question n'existe pas, on l'ajoute à la liste
+    if not found and question:
+        conversation.insert(0, {"title": question, "description": response})
+
+    # Insère la nouvelle entrée dans l'historique si elle est fournie
+    if question and response:
+        history.insert(0, [question, response])
+
+    # Utilise un dictionnaire pour éliminer les doublons (en conservant la dernière occurrence)
+    seen = {}
+    for item in conversation:
+        seen[item["title"]] = item
+
+    # Reconstruit la liste des conversations sans doublons
+    conversation = list(seen.values())
+
+    # Structure JSON finale
+    conversation_json = {
+        "conversationPath": nom_fichier_json,
         "conversation": conversation
-        
     }
-    # Enregistre l'objet JSON dans un fichier
-    nom_fichier_json = pdf + ".json"
+
+    # Enregistre l'objet JSON mis à jour dans le fichier
     with open(nom_fichier_json, "w", encoding="utf-8") as f:
         json.dump(conversation_json, f, indent=4, ensure_ascii=False)
+
     print(f"Conversation sauvegardée en JSON : {nom_fichier_json}")
-    
+
     return conversation_json
+
+
+
     
     
     
 def chat(pdf, question , history=None, llm="openai"):
     
-    if pdf=="llm_debug":
-        response = question
+    if llm =="debug":
+        response = '\n\n'.join([lorem.paragraph() for _ in range(2)])
 
     elif pdf.endswith("just.chat"):
-        response = chat_llm(question , history=None, llm="openai")
+        response = chat_llm(question=question , history=history, llm=llm)
     else:
-        response = chat_doc(pdf, question , history=None, llm="openai")    
+        response = chat_doc(pdf=pdf, question=question , history=history, llm=llm)    
     
     conversation_json = save_history(pdf=pdf, history=history, question=question, response=response)
     return response, conversation_json
@@ -419,17 +457,12 @@ def chat_doc(pdf, question , history=None, llm="openai"):
         history = []
 
     conversation_context = "\n".join(
-        f"\nQ: {q}\nR: {r}" for q, r in history[:5]
+        f"\nQuestion : {q}\nRéponse : {r}" for q, r in history[:5]
     )
 
 
     goal=f"""
-        L'analyste répond au mieux possible à la nouvelle question en lisant le document et en tenant compte du contexte de la conversation
-        Contexte de la conversation :
-        {conversation_context}
-
-        Nouvelle question :
-        {question}
+        L'analyste répond au mieux possible à la question en lisant le document et en tenant compte du contexte de la conversation.
         """
 
     analyste = Agent(
@@ -447,8 +480,19 @@ def chat_doc(pdf, question , history=None, llm="openai"):
         llm = ChooseLLM(llm)
     )
     repondre = Task(
-        description="Répondre à la question posée sur le document en utilisant le contexte.",
-        expected_output="Une réponse précise, dans la langue de la question, structuré avec des listes à puces et des titres au  format markdown pour la mise en forme et prenant en compte le contexte précédent.",
+        description=f"""
+        Répondre à la question posée sur le document en utilisant le contexte de la conversation.
+        Question :
+        {question}
+        
+        Contexte de la conversation :
+        {conversation_context}
+        """,
+        expected_output=f"""
+        Une réponse précise et structuré avec un titre, des sous titres et des listes à puces si nécessaire au format markdown pour la mise en forme. 
+        Prendre en compte le contexte précédent et répondre dans la langue de la question.
+        
+        """,
         agent=analyste,
     )
     
@@ -519,66 +563,72 @@ def chat_llm(question , history=None, llm="openai"):
 
 
 
-def chat_enhance(originalText, pdf, question , history=None, llm="openai"): 
-    
-    
+def chat_enhance(originalQuestion, originalText, pdf, question , history=None, llm="openai"): 
     if history is None:
         history = []
-
-    conversation_context = "\n".join(
-        f"\nTitre du chapitre: {q}\nContenu du Chapitre: {r}" for q, r in history[:5]
-    )
-    goal=f"""
-        L'analyste complète le texte initial en répondant à la question posée dans le contexte dela conversation :
-        """
-
-    analyste = Agent(
-        role="Analyste documentaire",
-        goal=goal,
-        backstory=f"""Lecteur chevronné, l'analyste approfondit la rédaction du texte initial en développer sont contenu.
         
-            """,
-        allow_delegation=False,
-        verbose=True,
-        llm = ChooseLLM(llm)
-    )
-    if pdf.endswith("just.chat"):
-        pass
-    else : 
-        backstory="""
-            Lecteur chevronné, l'analyste recherche et extrait les données pertinentes du document ou de ses propres connaissances
-            pour améliorer la rédaction du texte initial et en développer le contenu.
+        
+    if llm =="debug":
+        response = '\n\n'.join([lorem.paragraph() for _ in range(2)])
+    else:
+        conversation_context = "\n".join(
+            f"\nTitre du chapitre: {q}\nContenu du Chapitre: {r}" for q, r in history[:5]
+        )
+        goal=f"""
+            L'analyste complète le texte initial en répondant à la question posée dans le contexte de la conversation.
             """
-        analyste.tools=[choose_tool(src=pdf)]
-         
-    description=f"""Reprendre l'intégralité du texte initial en y ajoutant les paragraphes nécessaires pour l'approfondir par une réponse à la question. 
-        les informations du document analysé.
-        Question : 
-        {question}
-        Texte à initial : 
-        {originalText}
-        Le contenu des autres chapitres peut être pris en compte pour améliorer le texte initial sans être réutilisé dans la réponse :
-        {conversation_context}
-        """
-    
-    repondre = Task(
-        description=description,
-        expected_output="Le texte initial amélioré, structuré avec des listes à puces et des titres au format markdown pour la mise en forme. formuler les paragraphes supplémentaires dans la langue de la question",
-        agent=analyste,
-    )
-    
-    crew = Crew(
-        agents=[analyste],
-        tasks=[repondre],
-        process=Process.sequential  # Exécution séquentielle des tâches
-    )
-    try : 
-        result = crew.kickoff()
-    except Exception as e:
-        result = e
-    
-    response = result.raw
-    conversation_json = save_history(pdf=pdf, history=history, question=question, response=response)
+
+        analyste = Agent(
+            role="Analyste documentaire",
+            goal=goal,
+            backstory=f"""
+            Lecteur chevronné, l'analyste approfondit la rédaction du texte initial en développer sont contenu.
+            """,
+            allow_delegation=False,
+            verbose=True,
+            llm = ChooseLLM(llm)
+        )
+        if pdf.endswith("just.chat"):
+            pass
+        else : 
+            backstory="""
+                Lecteur chevronné, l'analyste recherche et extrait les données pertinentes du document ou de ses propres connaissances
+                pour améliorer la rédaction du texte initial et en développer le contenu.
+                """
+            analyste.tools=[choose_tool(src=pdf)]
+            
+        description=f"""
+            Reprendre l'intégralité du texte initial en y ajoutant les paragraphes nécessaires pour 
+            l'approfondir par une réponse à la question posée. 
+            La mise en forme initiale, les titres, les chaptitres et les listes du texte initial au format markdowd doivent être conservées 
+            Question : 
+            {question}
+            Texte initial à complèter sans en modifier le sens ni la forme : 
+            {originalText}
+            Le contenu des autres chapitres peut être pris en compte pour améliorer le texte initial sans être réutilisé dans la réponse :
+            {conversation_context}
+            """
+        
+        repondre = Task(
+            description=description,
+            expected_output="""
+            Le texte initial amélioré, structuré avec des listes à puces et des titres au format markdown pour la mise en forme. formuler les paragraphes supplémentaires dans la langue de la question
+            """,
+            agent=analyste,
+        )
+        
+        crew = Crew(
+            agents=[analyste],
+            tasks=[repondre],
+            process=Process.sequential  # Exécution séquentielle des tâches
+        )
+        try : 
+            result = crew.kickoff()
+        except Exception as e:
+            result = e
+        response = result.raw
+
+    conversation_json = save_history(pdf=pdf, history=history, question=originalQuestion, response=response) 
     
     return response, conversation_json
 

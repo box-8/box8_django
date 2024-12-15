@@ -1,22 +1,596 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}Webscrapping{% endblock title %}
+{%load static %}
+{% block css %}
+  <link rel="stylesheet" href="{% static 'css/chat.css' %}">
+{% endblock css %}
+{% block js %}
+<script>
+  var chatapp_memorize = '{% url 'chatapp:chatapp_memorize' %}'
+  var chatapp_delete_file = '{% url 'chatapp:chatapp_delete_file' %}'
+  var chatapp_ajax_analyses = '{% url 'chatapp:chatapp_ajax_analyses' %}'
+  var chatapp_ajax_delete_analyse = '{% url 'chatapp:chatapp_ajax_delete_analyse' %}'
+  var chatapp_ajax_fusion_pdf = '{% url 'chatapp:chatapp_ajax_fusion_pdf' %}'
+  var chroma_reset = '{% url 'chatapp:chroma_reset' %}'
+  var chatapp_upload = '{% url 'chatapp:chatapp_upload' %}'
+  var chatapp_ajax_set_analyse_url = '{% url 'chatapp:chatapp_ajax_set_analyse' %}'
+  var afficher_resume_vectorisation = '{% url "chatapp:afficher_resume_vectorisation" "0" "0" %}'
+</script>
+  <script src="{% static 'js/explorer.js' %}" ></script>
+
+<script>
+  var chatapp_talk = '{% url 'chatapp:chatapp_talk' %}'
+</script>
+  <script src="{% static 'js/map.js' %}" ></script>
 
 
+{% endblock js %}
+{% block title %}Analyse documentaire{% endblock title %}
+
+{% block content_left %}
+<h5>Dossiers d'analyse</h5>
+<div class="mb-1 btn-group">
+  <a href="javascript:void(0)" id="btn_modal_open_new_analyse" class="btn btn-outline-primary" >Nouveau ...</a>
+  <a href="javascript:void(0)" id="btn_modal_open_delete_analyse" class="btn btn-outline-primary" >Supprimer</a>
+</div>
+<ul id="explorer_analyses" class="list-group">
+  loading ...
+</ul>
+<h5>Contenu du dossier d'analyse</h5>
+<ul id="explorer_fiches" class="list-group">
+  Choisir un dossier d'analyse ...
+</ul>
+
+{% endblock content_left %}
 
 {% block content %}
-<h1>{{welcome}}</h1>
-<div class="container">
-    <div class="row mt-5">
-        <div class="col col-3">
-            <img src="{% static 'images/naldea-user-working.png'%}" class="img-fluid " style="width:200px"/>
+<h3>{{welcome}}</h3>
+<br>
+<section >
+    <div class="container" data-aos="fade-up">
+      <ul class="nav nav-tabs" id="myTab" role="tablist">
+        
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-panel" type="button" role="tab" aria-controls="chat-panel" aria-selected="false">Conversation</button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+          <button class="nav-link " id="fichier-tab" data-bs-toggle="tab" data-bs-target="#fichier-panel" type="button" role="tab" aria-controls="fichier-panel" aria-selected="true">Fichier</button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="carte-tab" data-bs-toggle="tab" data-bs-target="#carte-panel" type="button" role="tab" aria-controls="carte-panel" aria-selected="false">Carte</button>
+        </li>
+
+
+        <li class="nav-item" role="presentation">
+          <button class="nav-link " id="fiches-tab" data-bs-toggle="tab" data-bs-target="#fiches-panel" type="button" role="tab" aria-controls="fiches-panel" aria-selected="false">Dossier</button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="redaction-tab" data-bs-toggle="tab" data-bs-target="#redaction-panel" type="button" role="tab" aria-controls="redaction-panel" aria-selected="false">Options</button>
+        </li>
+
+      </ul>
+
+      <div class="tab-content" id="myTabContent">
+
+        <div class="tab-pane fade show active" id="chat-panel" role="tabpanel" aria-labelledby="chat-tab">
+          <div class="section-title pt-3">
+            <h4 id="chat-panel-title">Conversation</h4>
+            <button id="prompt-sommaire" class="btn btn-outline-secondary" type="button">Sommaire</button>
+            <button id="prompt-word" class="btn btn-outline-secondary" type="button">Générer le Word</button>
+            <button id="prompt-json-conversation" class="btn btn-outline-secondary" type="button">Get Conversation</button>
+            <br/>
+            <label>
+              <input type="checkbox" name="file_to_rag" id="file_to_rag" value="" {% if request.session.file_to_rag == ".txt" %}checked{% endif %}> Utiliser le résumé au lieu du fichier
+            </label>
+            
+            <h5>Historique des conversations {% if request.session.llm_debug %}(Debug){% endif %}</h5>
+            <div class="row">
+              <div class="col-8">
+                <div class="input-group mb-3">
+                  <input id="prompt" type="text" class="form-control" placeholder="Prompt ..." >
+                  <button id="prompt-send" class="btn btn-outline-secondary" type="button">Send</button>
+                  <button id="prompt-clear" class="btn btn-outline-secondary" type="button">Clear</button>
+                  
+                </div>
+              </div>
+            </div>
+            
+          </div>
+          <div id="conversation" class="input-group mb-3"></div>
         </div>
-        <div class="col">
-            <a href="{% url 'chatapp:chatapp_webscrapping_demo' %}" class="btn btn-link">Developpement Durable</a>
+
+
+        <div class="tab-pane fade  " id="fiches-panel" role="tabpanel" aria-labelledby="fiches-tab">
+          <div class="section-title pt-3">
+            <h4 id="fiches-panel-title">Dossier</h4>
+            <h5>Actions disponibles</h5>
+
+            <div class="mb-1 btn-group">
+              <a href="javascript:void(0)" id="btn_modal_open_upload" class="btn btn-outline-primary" >Upload ...</a>
+              <a href="javascript:void(0)" id="btn_fusion_pdf" class="btn btn-outline-primary" >Fusionner les pdf</a>
+              <a href="javascript:void(0)" id="chroma_reset" class="btn btn-outline-primary" >Restart Chroma</a>
+            </div>
+            
+          </div>
         </div>
+
+        <div class="tab-pane fade" id="fichier-panel" role="tabpanel" aria-labelledby="fichier-tab">
+          <div class="section-title pt-3">
+            <h4 id="fichier-panel-title">Fichier</h4>
+            <h5>Actions disponibles</h5>
+            <div class="row">
+              <div class="col-12">
+                <div class="mb-1 btn-group">
+                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-delete" >Supprimer</a>
+                </div>
+              </div> 
+            </div>
+            <div class="row" >
+              <div class="col-12">
+                <h5>Informations du fichier sélectionné</h5>
+                <div class="mb-1 btn-group">
+                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-iframe">Ouvrir</a>
+                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-vectoriser" >Résumer</a>
+                </div>
+                </br>
+                <div id="filedetails">Pas de contenu, sélectionner un fichier</div>
+              </div> 
+            </div>
+            
+          </div>
+        </div>
+
+        
+        <div class="tab-pane fade " id="carte-panel" role="tabpanel" aria-labelledby="carte-tab">
+          <div class="section-title pt-3">
+            <h4>Carte interactive</h4>
+            <h5>Les informations géographiques s'affichent ici</h5>
+            <div class="input-group mb-3">
+              <button id="plot-doc" class="btn btn-outline-secondary" type="button">Afficher le Document</button>
+              <button id="plot-sumup" class="btn btn-outline-secondary" type="button">Afficher le Résumé</button>
+            </div>
+            <div class="input-group mb-3">
+              <button id="plot-clear" class="btn btn-outline-secondary" type="button">Reset</button>
+              <button id="map-mode" class="btn btn-outline-secondary" type="button">mode consultation</button>
+            </div>
+            <div id="map"></div>
+          </div>
+        </div>
+
+        <div class="tab-pane fade " id="redaction-panel" role="tabpanel" aria-labelledby="redaction-tab">
+          <div class="section-title pt-3">
+            <h4>Options </h4>
+            <h5>Choisir un LLM ({{ request.session.selected_llm }})</h5>
+            <form id="llm-form">
+                  <div class="form-check">
+                      <input class="form-check-input" type="radio" name="llm" id="openai" value="openai" {% if request.session.selected_llm == "openai" %}checked{% endif %}> 
+                      <label class="form-check-label" for="openai">
+                          OpenAI GPT-4
+                      </label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="llm" id="other" value="other" {% if request.session.selected_llm == "other" %}checked{% endif %} >
+                    <label class="form-check-label" for="other">
+                        OpenAI GPT-3.5
+                    </label>
+                  </div>
+                  <div class="form-check">
+                        <input class="form-check-input" type="radio" name="llm" id="groq-llama" value="groq-llama" {% if request.session.selected_llm == "groq-llama" %}checked{% endif %} >
+                        <label class="form-check-label" for="groq-llama">
+                          groq/llama-3.1-70b-versatile
+                        </label>
+                    </div>
+
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="llm" id="groq" value="groq" {% if request.session.selected_llm == "groq" %}checked{% endif %} >
+                      <label class="form-check-label" for="groq">
+                        groq/mixtral-8x7b-32768
+                      </label>
+                  </div>
+
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="llm" id="mistral" value="mistral" {% if request.session.selected_llm == "mistral" %}checked{% endif %} >
+                    <label class="form-check-label" for="mistral">
+                      mistral/mistral-medium-latest
+                    </label>
+                </div>
+
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="llm" id="local" value="local" {% if request.session.selected_llm == "local" %}checked{% endif %} >
+                  <label class="form-check-label" for="local">
+                      Local Mistral
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="llm" id="claude" value="claude" {% if request.session.selected_llm == "claude" %}checked{% endif %} >
+                  <label class="form-check-label" for="claude">
+                    claude-3-5-sonnet-20240620
+                  </label>
+                </div>
+                    
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="llm" id="debug" value="debug" {% if request.session.selected_llm == "debug" %}checked{% endif %} >
+                      <label class="form-check-label" for="debug">
+                        debug (no LLM)
+                      </label>
+                  </div>
+
+                    <button type="submit" class="btn btn-primary mt-3">Valider</button>
+                </form>
+          </div>
+        </div>
+        
+
+      </div>
+      
     </div>
-</div>
+  </section>
+
+<!-- Modal modal_new_analyse -->
+<div class="modal fade" id="modal_new_analyse" tabindex="-1" aria-labelledby="NewAnalyseModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="new-analyse-form">
+      <div class="modal-content">
+          <div class="modal-header">
+              <h5 class="modal-title" id="NewAnalyseModalLabel">Créer un Répertoire</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+              <!-- Formulaire -->
+                  <div class="mb-3">
+                      <label for="new_analyse_name" class="form-label">Nom du Répertoire d'analyse :</label>
+                      <input type="text" class="form-control" id="new_analyse_name" name="new_analyse_name" required>
+                  </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Créer</button>  
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          </div>
+      </div>
+    </form>
+  </div>
+</div>  
+
+
+<!-- Modal modal_upload_files -->
+<div class="modal fade" id="modal_upload_files" tabindex="-1" aria-labelledby="UploadModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="upload-form" method="post" enctype="multipart/form-data" class="mb-3">
+      <div class="modal-content">
+          <div class="modal-header">
+              <h5 class="modal-title" id="UploadModalLabel"><span id="span_upload_dir"></span><h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+              <!-- Formulaire -->
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="file-input" class="form-label">Sélectionner les fichiers à télécharger </label>
+                    <input type="file" class="form-control" name="files" id="file-input" accept=".pdf, .doc, .docx" multiple>
+                </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Envoyer</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          </div>
+      </div>
+    </form>
+  </div>
+  
+</div>  
+
+
+
+<!-- Script gestion dossiers analyse et upload fichiers -->
+<script>
+  var analyse_courante = {"username":"","analyse":"","entries":[],"prompt":"", "history":[]} 
+  var fichier_courant ={"filename":""}
+
+  $(document).ready(function () {
+    
+
+
+
+    function ConversationArray(getType){
+      var conversationArray = [];
+      var allConversations = $('#conversation .row');
+      // Sélectionner toutes les paires de question et réponse
+      allConversations.each(function() {
+          var question = $(this).find('.alert-info').text().trim();  // Récupérer le texte de la question
+          if(getType == "text"){
+            var answer = $(this).next('.row').find('.alert-warning').text().trim();  // Récupérer le texte de la réponse
+          }else{
+            var answer = $(this).next('.row').find('.alert-warning').html();  // Récupérer le texte de la réponse
+          }
+          // Ajouter à l'array si à la fois question et réponse existent
+          if (question && answer) { 
+              conversationArray.push([question, answer]);
+          }
+      });
+      console.log(conversationArray)
+      return conversationArray
+    }
+
+    function setSommaire(response){
+      $.each(response, function(index, QA) {
+        let qa = newQA()
+        qa.prepend(newPrompt(QA.title, "info"))
+        qa.append(newPrompt(marked.parse(QA.description), "warning")) 
+      });
+    }
+    function newQA(){
+      qa = $("<div class='container'></div>")
+      $("#conversation").prepend(qa)
+      return qa
+    }
+    function newPrompt(p, className="success"){
+      var component = $("<div class='row'></div>")
+      var component_text = $("<div class='col-11 alert alert-"+className+"'>"+p+"</div>")
+      var component_toolbar = $("<div class='col-12 input-group'></div>")
+      component.prepend(component_text)
+      component.append(component_toolbar)
+      
+      var Col=$("<div class='col-1'></div>")
+      if (className!="info"){ // llm
+        var component_tool = $("<input type='text' class='form-control'></input>")
+        component_tool.keypress(function(event) {
+          if (event.which === 13) {
+            event.preventDefault();
+            chatapp_enhance($(this), component_text);
+          }
+        });
+        
+        var component_tool0 = $("<button class='btn btn-outline-secondary'>Send</button>")
+        component_tool0.click(function(event) {
+          chatapp_enhance(component_tool, component_text);
+        });
+        var component_tool1 = $("<button class='btn btn-outline-secondary'>Delete</button>")
+        component_tool1.click(function(event) {
+          component.parent().remove()
+        });
+        var component_tool2 = $("<button class='btn btn-outline-secondary'>Select</button>")
+        component_tool2.click(function(event) {
+          component_text.toggleClass("alert-warning").toggleClass("alert-danger");
+        });
+        component_toolbar.prepend(component_tool, component_tool0, component_tool1,component_tool2)
+
+        component.append(Col)
+      }else{
+        component.prepend(Col)
+      }
+      return component
+    }
+    $('#prompt-send').click(function(event) {
+      chatapp_talk() 
+    });
+    $('#prompt-clear').click(function(event) {
+       $("#conversation").html("")
+    });
+    $('#prompt').keypress(function(event) {
+      if (event.which === 13) {
+        event.preventDefault();
+        chatapp_talk();
+      }
+    });
+
+    /* Fonctionnalités de chat */
+    function chatapp_talk(){
+      question = $('#prompt').val()
+      if(question==""){return false}
+      analyse_courante.prompt=question
+      analyse_courante.history = ConversationArray("text")
+      const qa = newQA();
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_talk' %}',
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          qa.prepend(newPrompt(question, "info"))
+          $('#prompt').val("")
+        },
+        success: function(response) {
+            html = marked.parse(response.content)
+            qa.append(newPrompt(html, response.state))
+            console.log(response);
+        },
+        error: function(e) {
+            qa.prepend(newPrompt('Une erreur s\'est produite.', response.state))
+            $('#prompt').val(question)
+            console.log(e);
+        }
+      });
+
+    }
+
+    /* Fonctionnalités de chat : on développe la réponse donnée */
+    function chatapp_enhance(divQuestion, divWarning){
+      question = divQuestion.val()
+      originalText = divWarning.text()
+      if(question==""){return false}
+      analyse_courante.prompt=question
+      analyse_courante.history = ConversationArray("text")
+      analyse_courante.originalText = originalText;
+      
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_enhance' %}',
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          divQuestion.val("")
+          divWarning.parent().append($("<p class='alert alert-secondary' >"+question+"</p>"))
+        },
+        success: function(response) {
+            html = marked.parse(response.content)
+            divWarning.html(html)
+            console.log(response);
+        },
+        error: function(e) {
+            alert('Une erreur s\'est produite.')
+            console.log(e);
+        }
+      });
+    }
+    
+    
+
+    $("#prompt-sommaire").click(function(){
+      question = $('#prompt').val()
+      if(question ==""){
+        return false
+      }
+      analyse_courante.prompt=question
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_sommaire' %}',
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+        },
+        success: function(response) {
+            console.log(response);
+            setSommaire(response)
+        },
+        error: function(e) {
+            console.log(e);
+        }
+      });
+    });
+
+
+
+
 
     
+
+    // reprend la conversation sélectionnée
+    $("#prompt-json-conversation").click(function(){
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_get_conversation' %}',
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          $('#prompt-clear').click()
+        },
+        success: function(response) {
+            console.log(response.conversation);
+            setSommaire(response.conversation)
+        },
+        error: function(e) {
+            console.log(e);
+        }
+      });
+      
+    })
+
+    $("#prompt-word").click(function(){
+      analyse_courante.history = ConversationArray("html")
+      let nom = prompt("Entrez le nom du fichier que vous souhaiter générer :", "Fichier Word");
+      analyse_courante.prompt=nom
+      console.log(analyse_courante)
+      $.ajax({
+        url: '{% url 'chatapp:chatapp_word' %}',
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          
+        },
+        success: function(response) {
+            console.log(response);
+            $.toast({heading: "Info",text:response.content})
+        },
+        error: function(e) {
+            console.log(e);
+        }
+      });
+    })
+
+
+  });
+
+
+
+
+
+
+
+
+
+
+
+
+
+  $('#file_to_rag').on('click', function(event) {
     
+    if ($(this).is(':checked')) {
+        // alert('La checkbox est cochée');
+        var selectedLLM = ".txt"
+    } else {
+        // alert('La checkbox n\'est pas cochée');
+        var selectedLLM = ""
+    }
+    
+    $.ajax({
+      url: '{% url 'chatapp:chatapp_file_to_rag' %}',
+      type: 'POST',
+      data: JSON.stringify({name:selectedLLM}),
+      contentType: 'application/json', 
+      beforeSend: function(xhr, settings){
+        xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+        
+      },
+      success: function(response) {
+        $.toast({heading: "Info",text:response.message})
+        console.log(response);
+      },
+      error: function(e) {
+        $.toast({heading: "Info",text:e})
+        console.log(e);
+      }
+    });
+  });
+
+
+  // gestion du LLM
+  $('#llm-form').on('submit', function(event) {
+    event.preventDefault(); // Empêche la soumission classique du formulaire
+    var selectedLLM = $('input[name="llm"]:checked').val(); // Récupérer la valeur de l'option sélectionnée
+
+    $.ajax({
+      url: '{% url 'chatapp:chatapp_llm' %}',
+      type: 'POST',
+      data: JSON.stringify({name:selectedLLM}),
+      contentType: 'application/json', 
+      beforeSend: function(xhr, settings){
+        xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+        
+      },
+      success: function(response) {
+        $.toast({heading: "Info",text:response.message})
+        console.log(response);
+      },
+      error: function(e) {
+        $.toast({heading: "Info",text:e})
+        console.log(e);
+      }
+    });
+  });
+
+
+
+  
+</script>
+
+
+
 {% endblock content %}
