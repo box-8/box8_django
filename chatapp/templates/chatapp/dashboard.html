@@ -2,10 +2,29 @@
 {%load static %}
 {% block css %}
   <link rel="stylesheet" href="{% static 'css/chat.css' %}">
+  <style>
+    #fixedElement {
+      position: fixed;
+      bottom: 10px;
+      width: 100%;
+      background-color: #FAFAFA;
+      padding: 5px;
+      text-align: center;
+      box-shadow: 0 -2px 3px rgba(0, 0, 0, 0.2);
+      z-index:999;
+    }
+  </style>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
 {% endblock css %}
+
+
+
+
 {% block js %}
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
 <script>
-  var chatapp_memorize = '{% url 'chatapp:chatapp_memorize' %}'
+  var chatapp_summarize = '{% url 'chatapp:chatapp_summarize' %}'
   var chatapp_delete_file = '{% url 'chatapp:chatapp_delete_file' %}'
   var chatapp_ajax_analyses = '{% url 'chatapp:chatapp_ajax_analyses' %}'
   var chatapp_ajax_delete_analyse = '{% url 'chatapp:chatapp_ajax_delete_analyse' %}'
@@ -14,12 +33,24 @@
   var chatapp_upload = '{% url 'chatapp:chatapp_upload' %}'
   var chatapp_ajax_set_analyse_url = '{% url 'chatapp:chatapp_ajax_set_analyse' %}'
   var afficher_resume_vectorisation = '{% url "chatapp:afficher_resume_vectorisation" "0" "0" %}'
+  var chatapp_ajax_new_analyse = "{% url 'chatapp:chatapp_ajax_new_analyse' %}"
+
 </script>
   <script src="{% static 'js/explorer.js' %}" ></script>
 
+
+<!-- Script chats -->
 <script>
   var chatapp_talk = '{% url 'chatapp:chatapp_talk' %}'
-</script>
+
+  var chatapp_delete_conversation_entry = '{% url 'chatapp:chatapp_delete_conversation_entry' %}'
+  var chatapp_enhance_url = '{% url 'chatapp:chatapp_enhance' %}'
+  var chatapp_sommaire = '{% url 'chatapp:chatapp_sommaire' %}'
+  var chatapp_get_conversation = '{% url 'chatapp:chatapp_get_conversation' %}'
+  var chatapp_word = '{% url 'chatapp:chatapp_word' %}'
+  var chatapp_file_to_rag = '{% url 'chatapp:chatapp_file_to_rag' %}'
+  var chatapp_llm = '{% url 'chatapp:chatapp_llm' %}'
+  </script>
   <script src="{% static 'js/map.js' %}" ></script>
 
 
@@ -39,6 +70,8 @@
 <ul id="explorer_fiches" class="list-group">
   Choisir un dossier d'analyse ...
 </ul>
+
+
 
 {% endblock content_left %}
 
@@ -77,28 +110,32 @@
         <div class="tab-pane fade show active" id="chat-panel" role="tabpanel" aria-labelledby="chat-tab">
           <div class="section-title pt-3">
             <h4 id="chat-panel-title">Conversation</h4>
-            <button id="prompt-sommaire" class="btn btn-outline-secondary" type="button">Sommaire</button>
+            <button id="prompt-sommaire-openmodal" class="btn btn-outline-secondary" type="button">Insights</button>
             <button id="prompt-word" class="btn btn-outline-secondary" type="button">Générer le Word</button>
             <button id="prompt-json-conversation" class="btn btn-outline-secondary" type="button">Get Conversation</button>
+            <button id="prompt-clear" class="btn btn-outline-secondary" type="button">Clear Conversation</button>
             <br/>
             <label>
               <input type="checkbox" name="file_to_rag" id="file_to_rag" value="" {% if request.session.file_to_rag == ".txt" %}checked{% endif %}> Utiliser le résumé au lieu du fichier
             </label>
             
             <h5>Historique des conversations {% if request.session.llm_debug %}(Debug){% endif %}</h5>
-            <div class="row">
+            <div class="row" id="fixedElement">
               <div class="col-8">
                 <div class="input-group mb-3">
                   <input id="prompt" type="text" class="form-control" placeholder="Prompt ..." >
-                  <button id="prompt-send" class="btn btn-outline-secondary" type="button">Send</button>
-                  <button id="prompt-clear" class="btn btn-outline-secondary" type="button">Clear</button>
+                  <button id="prompt-send" class="btn btn-primary" type="button">Send</button>
+                  <button id="prompt-expand-toggle" class="btn btn-light" type="button">⤴️</button>
+                  
                   
                 </div>
               </div>
             </div>
             
           </div>
-          <div id="conversation" class="input-group mb-3"></div>
+          <div id="conversation" class=" mb-3"></div>
+
+          
         </div>
 
 
@@ -283,7 +320,31 @@
 
 
 
-<!-- Script gestion dossiers analyse et upload fichiers -->
+
+
+<!-- Modal modal_upload_files -->
+<div class="modal fade" id="modal_insights" tabindex="-1" aria-labelledby="InsightsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+
+      </div>
+      <div class="modal-body">
+        <h5>Insights</h5>
+        <div id="insights" class="m-3"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="prompt-sommaire" class="btn btn-primary" type="button">Nouvelle analyse</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+
+  </div>
+</div> 
+
+
+
+
 <script>
   var analyse_courante = {"username":"","analyse":"","entries":[],"prompt":"", "history":[]} 
   var fichier_courant ={"filename":""}
@@ -293,16 +354,22 @@
 
   $(document).ready(function () {
 
+    var QAS = Array()
     function setSommaire(response){
+      let lastQA 
       $.each(response, function(index, QA) {
         let qa = NewQA(QA.title)
         qa.response(marked.parse(QA.description))
         $("#conversation").prepend(qa)
+        qa.mask()
+        lastQA  = qa
       });
+      enableDragDrop()
+      scrollToQA(lastQA)
     }
     
     $('#prompt-send').click(function(event) {
-      chatapp_talk() 
+      chatapp_talk_new() 
     });
     $('#prompt-clear').click(function(event) {
        $("#conversation").html("")
@@ -310,104 +377,20 @@
     $('#prompt').keypress(function(event) {
       if (event.which === 13) {
         event.preventDefault();
-        chatapp_talk();
+        chatapp_talk_new();
       }
     });
+    
+    
 
-    /* Fonctionnalités de chat */
-    function chatapp_talk(){
-      chatapp_talk_new()
-    }
-
-
-    function ConversationArray(getType){
-      var conversationArray = [];
-      var allConversations = $('#conversation .container');
-      // Sélectionner toutes les paires de question et réponse
-      allConversations.each(function() {
-          var question = $(this).find('.alert-info').text().trim();  // Récupérer le texte de la question
-          var answer = $(this).find('.alert-warning').html();  // Récupérer le texte de la réponse
-          
-          if(getType == "text"){
-            answer = turndownService.turndown(answer);
-          }else{
-          }
-          // Ajouter à l'array si à la fois question et réponse existent
-          if (question && answer) { 
-              conversationArray.push([question, answer]);
-          }
-      });
-      console.log(conversationArray)
-      return conversationArray
-    }
-
-    function NewQA(prompt){
-      let Col=$("<div class='col-1'></div>")
-      let qa = $("<div class='container'></div>")
-      
-      qa.qRow = $("<div class='row'></div>")
-      qa.qHtml = $("<div class='col-11 alert alert-info'>"+prompt+"</div>")
-      qa.qToolbarRow = $("<div class='row p-2'></div>")
-      qa.qToolbar = $("<div class='col-12 input-group qa-response'></div>").hide()
-      qa.qToolbarInput = $("<input type='text' class='form-control'></input>")
-      qa.qToolbarSend = $("<button class='btn btn-outline-secondary'>Send</button>")
-      qa.qToolbarDelete = $("<button class='btn btn-outline-secondary'>Delete</button>")
-      qa.qToolbarSelect = $("<button class='btn btn-outline-secondary'>Select</button>").hide()
-      
-      qa.append(qa.qRow)
-      qa.qRow.append(Col, qa.qHtml)
-      
-      qa.append(qa.qToolbarRow)
-      qa.qToolbarRow.append(qa.qToolbar)
-      qa.qToolbar.append(qa.qToolbarInput, qa.qToolbarSend, qa.qToolbarDelete, qa.qToolbarSelect )
-      
-      // answers
-      qa.aRow = $("<div class='row'></div>").hide()
-      qa.aHtml = $("<div class='col-11 alert alert-warning'></div>")
-      
-      qa.append(qa.aRow)
-      qa.aRow.append(qa.aHtml)
-
-
-      qa.response = function(value){
-        qa.aHtml.html(value)
-        qa.aRow.slideDown()
-      }
-
-      qa.qToolbarSend.click(function(event) {
-        chatapp_enhance(qa, qa.qToolbarInput, qa.aHtml);
-      });
-      qa.qToolbarInput.keypress(function(event) {
-        if (event.which === 13) {
-          event.preventDefault();
-          chatapp_enhance(qa, qa.qToolbarInput, qa.aHtml);
-        }
-      });
-
-      qa.qRow.click(function(event) {
-        $(".qa-response").hide()
-        qa.qToolbar.toggle()
-      });
-
-      qa.aHtml.click(function(event) {
-        qa.aHtml.toggleClass("alert-warning").toggleClass("alert-danger");
-      });
-
-      qa.qToolbarDelete.click(function(event) {
-        conversationDeleteEntry(qa)
-        
-      });
-
-
-      return qa
-    }
+    
 
     function conversationDeleteEntry(qa){
       analyse_courante.prompt = qa.qHtml.html()
       console.log(analyse_courante)
       
       $.ajax({
-        url: '{% url 'chatapp:chatapp_delete_conversation_entry' %}',
+        url: chatapp_delete_conversation_entry,
         type: 'POST',
         data: JSON.stringify(analyse_courante), 
         contentType: 'application/json', 
@@ -434,13 +417,15 @@
       analyse_courante.history = ConversationArray("text")
       let qa = NewQA(question);
       $.ajax({
-        url: '{% url 'chatapp:chatapp_talk' %}',
+        url: chatapp_talk,
         type: 'POST',
         data: JSON.stringify(analyse_courante), 
         contentType: 'application/json', 
         beforeSend: function(xhr, settings){
           xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-          $("#conversation").prepend(qa)
+          $("#conversation").append(qa)
+          enableDragDrop()
+          scrollToQA(qa)
           $('#prompt').val("")
         },
         success: function(response) {
@@ -459,6 +444,7 @@
 
 
 
+
     /* Fonctionnalités de chat : on développe la réponse donnée */
     function chatapp_enhance(qa){
       
@@ -470,9 +456,33 @@
       analyse_courante.history = ConversationArray("text")
       analyse_courante.originalText = originalText;
       analyse_courante.originalQuestion = qa.qHtml.html();
-      
+
+      console.log(chatapp_enhance)
+
       $.ajax({
-        url: '{% url 'chatapp:chatapp_enhance' %}',
+        url: chatapp_enhance_url,
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          qa.qToolbarInput.val("")
+          qa.aHtml.parent().append($("<p class='alert alert-secondary' >"+question+"</p>"))
+        },
+        success: function(response) {
+          html = marked.parse(response.content)
+          qa.aHtml.html(html)
+          console.log(response);
+        },
+        error: function(e) {
+          alert("Une erreur s'est produite.")
+          console.log(e);
+        }
+      });
+      return false
+      /*
+      $.ajax({
+        url: chatapp_enhance,
         type: 'POST',
         data: JSON.stringify(analyse_courante), 
         contentType: 'application/json', 
@@ -487,22 +497,209 @@
             console.log(response);
         },
         error: function(e) {
-            alert('Une erreur s\'est produite.')
+            alert("Une erreur s'est produite.")
             console.log(e);
         }
       });
+      */
     }
+
+    function ConversationArray(getType){
+      var conversationArray = [];
+      var allConversations = $('#conversation .container');
+      // Sélectionner toutes les paires de question et réponse
+      allConversations.each(function() {
+          var question = $(this).find('.alert-info').text().trim();  // Récupérer le texte de la question
+          var answer = $(this).find('.alert-warning').html();  // Récupérer le texte de la réponse
+          if (typeof answer === "undefined"){
+            console.warn("ConversationArray : entrée non trouvée ",question)
+          }else{
+            if(getType == "text"){
+              answer = turndownService.turndown(answer);
+            }
+            
+            if (question && answer) { // Ajouter à l'array si à la fois question et réponse existent
+                conversationArray.push([question, answer]);
+            }
+          }
+          
+      });
+      console.log(conversationArray)
+      return conversationArray
+    }
+
+    $('#prompt-expand-toggle').click(function(event) {
+      let self = $(this)
+      
+      if (self.text()=="⤴️") {
+        self.text("⬇️");
+        QAS.forEach(element => {
+          element.unmask();
+        });
+      } else {
+        self.text("⤴️");
+        QAS.forEach(element => {
+          element.mask();
+        });
+      }
+   });
+   
+    function NewQA(prompt) {
+      let Col = $("<div class='drag-handle col-1 text-secondary' style='cursor: move;'>⬇️</div>");
+      let qa = $("<div class='container mb-2 p-2'></div>");
+      
+      // Icône pour le déplacement
+      let dragHandle = $("<div class=' col-1 text-secondary' >⇅</div>");
+    
+      qa.qRow = $("<div class='row qa-question'></div>");
+      qa.qHtml = $("<div class='col-11 alert alert-info' style='cursor: pointer;'>" + prompt + "</div>");
+      qa.qToolbarRow = $("<div class='row p-2'></div>");
+      qa.qToolbar = $("<div class='col-12 input-group qa-toolbar'></div>").hide();
+      qa.qToolbarInput = $("<input type='text' class='form-control'></input>");
+      qa.qToolbarSend = $("<button class='btn btn-outline-secondary'>Update</button>");
+      qa.qToolbarDelete = $("<button class='btn btn-outline-secondary'>Delete</button>");
+      qa.qToolbarSelect = $("<button class='btn btn-outline-secondary'>Select</button>").hide();
+    
+      qa.append(qa.qRow);
+      qa.qRow.append(Col, qa.qHtml);
+    
+      qa.append(qa.qToolbarRow);
+      qa.qToolbarRow.append(qa.qToolbar);
+      qa.qToolbar.append(qa.qToolbarInput, qa.qToolbarSend, qa.qToolbarDelete, qa.qToolbarSelect);
+    
+      // Answers
+      qa.aRow = $("<div class='row qa-answer'></div>").hide();
+      qa.aHtml = $("<div class='col-11 alert alert-warning'></div>");
+    
+      qa.append(qa.aRow);
+      qa.aRow.append(qa.aHtml);
+    
+      Col.click(function (event) {
+        qa.aRow.toggle();
+        if (qa.aRow.is(':visible')) {
+          Col.text("⬇️");
+        } else {
+          Col.text("⤴️");
+        }
+        qa.qToolbar.hide();
+      });
+    
+      qa.response = function (value) {
+        qa.aHtml.html(value);
+        qa.aRow.slideDown();
+      };
+
+      qa.mask = function () {
+        qa.aRow.hide();
+        Col.text("⤴️");
+      };
+      qa.unmask = function () {
+        qa.aRow.show();
+        Col.text("⬇️");
+      };
+    
+      qa.qToolbarSend.click(function (event) {
+        chatapp_enhance(qa, qa.qToolbarInput, qa.aHtml);
+      });
+      qa.qToolbarInput.keypress(function (event) {
+        if (event.which === 13) {
+          event.preventDefault();
+          chatapp_enhance(qa, qa.qToolbarInput, qa.aHtml);
+        }
+      });
+    
+      qa.qHtml.click(function (event) {
+        $(".qa-toolbar").hide();
+        qa.qToolbar.toggle();
+        qa.unmask()
+      });
+    
+      qa.aHtml.click(function (event) {
+        qa.aHtml.toggleClass("alert-warning").toggleClass("alert-danger");
+      });
+    
+      qa.qToolbarDelete.click(function (event) {
+        conversationDeleteEntry(qa);
+      });
+      QAS.push(qa)
+      return qa;
+    }
+    
+
+    function enableDragDrop() {
+      $("#conversation").sortable({
+        placeholder: "ui-state-highlight",  // Style pour le placeholder pendant le drag
+        handle: ".drag-handle",             // Permet de déplacer uniquement avec l'icône spécifique
+        cursor: "move",                     // Curseur de déplacement
+        update: function(event, ui) {
+          console.log("Ordre des questions mis à jour !");
+        }
+      });
+    }
+    function scrollToQA(qa) {
+      $('html, body').animate({
+        scrollTop: qa.offset().top - 20  // Ajustez le décalage si nécessaire
+      }, 600);  // Durée de l'animation en millisecondes (600ms ici)
+    }
+    
+
+
+
+
+
+
+
+
+    $("#prompt-sommaire-openmodal").click(function(){
+      $("#modal_insights").modal('show')
+    })
+    function NewInsight(entry){
+      let insight = $("<div class='container' style='cursor:pointer'></div>")
+      
+      insight.qRow = $("<div class='row'></div>")
+      insight.title = $("<div class='col-12 alert alert-success m-1'>"+entry.title+"</div>")
+      
+      insight.qRow2 = $("<div class='row'></div>")
+      
+      insight.description = $("<div class='col-12 text-success  m-1'>"+entry.description+"</div>").hide()
+      
+      insight.append(insight.qRow,insight.qRow2)
+      insight.qRow.append(insight.title)
+      insight.qRow2.append(insight.description)
+
+      insight.hover(
+        function() {
+          // Lors du survol du titre, afficher la description
+          insight.description.show();
+        },
+        function() {
+          // Lorsque la souris quitte le titre, masquer la description
+          insight.description.hide();
+        }
+      );
+
+      insight.click(function(){
+        $('#prompt').val(entry.title)
+        chatapp_talk_new()
+        // insight.remove()
+      })
+      return insight
+    }
+    function setInsights(response){
+      $.each(response, function(index, entry) {
+        let insight = NewInsight(entry)
+        $("#insights").prepend(insight)
+      });
+      $("#insights").prepend($("<hr></hr>"))
+    }
+    
     
     
 
     $("#prompt-sommaire").click(function(){
-      question = $('#prompt').val()
-      if(question ==""){
-        return false
-      }
-      analyse_courante.prompt=question
+      analyse_courante.prompt=6
       $.ajax({
-        url: '{% url 'chatapp:chatapp_sommaire' %}',
+        url: chatapp_sommaire ,
         type: 'POST',
         data: JSON.stringify(analyse_courante), 
         contentType: 'application/json', 
@@ -511,7 +708,7 @@
         },
         success: function(response) {
             console.log(response);
-            setSommaire(response)
+            setInsights(response)
         },
         error: function(e) {
             console.log(e);
@@ -519,16 +716,12 @@
       });
     });
 
-
-
-
-
     
 
     // reprend la conversation sélectionnée
     $("#prompt-json-conversation").click(function(){
       $.ajax({
-        url: '{% url 'chatapp:chatapp_get_conversation' %}',
+        url: chatapp_get_conversation,
         type: 'POST',
         data: JSON.stringify(analyse_courante), 
         contentType: 'application/json', 
@@ -553,7 +746,7 @@
       analyse_courante.prompt=nom
       console.log(analyse_courante)
       $.ajax({
-        url: '{% url 'chatapp:chatapp_word' %}',
+        url: chatapp_word,
         type: 'POST',
         data: JSON.stringify(analyse_courante), 
         contentType: 'application/json', 
@@ -597,7 +790,7 @@
     }
     
     $.ajax({
-      url: '{% url 'chatapp:chatapp_file_to_rag' %}',
+      url: chatapp_file_to_rag,
       type: 'POST',
       data: JSON.stringify({name:selectedLLM}),
       contentType: 'application/json', 
@@ -623,7 +816,7 @@
     var selectedLLM = $('input[name="llm"]:checked').val(); // Récupérer la valeur de l'option sélectionnée
 
     $.ajax({
-      url: '{% url 'chatapp:chatapp_llm' %}',
+      url: chatapp_llm,
       type: 'POST',
       data: JSON.stringify({name:selectedLLM}),
       contentType: 'application/json', 

@@ -9,7 +9,7 @@ from .views import (chatapp_dashboard,
                     chatapp_set_fiches, 
                     chatapp_upload, 
                     chatapp_ajax_new_analyse,
-                    chatapp_memorize, 
+                    chatapp_summarize, 
                     chatapp_file_to_rag,
                     chatapp_ajax_delete_analyse, 
                     chatapp_talk,
@@ -41,7 +41,7 @@ urlpatterns = [
     path('chatapp/upload/', chatapp_upload, name='chatapp_upload'), # upload des fichiers dans le répertoire d'analyse courant
     path('chatapp/set_analyse/', chatapp_ajax_set_analyse, name="chatapp_ajax_set_analyse"), # définit de dossier d'analyse et retourne la liste des documents qu'il contient
     path('chatapp/set_fiche/', chatapp_set_fiches, name="chatapp_set_fiches"), # définit le dossier d'analyse et la liste des documents avec lesquels on va pouvoir chatter
-    path('chatapp/memorize/', chatapp_memorize, name="chatapp_memorize"), # mémorise un document pour pouvoir chatter avec 
+    path('chatapp/memorize/', chatapp_summarize, name="chatapp_summarize"), # mémorise un document pour pouvoir chatter avec 
     path('chatapp/rag_file/', chatapp_file_to_rag, name="chatapp_file_to_rag"), # définit le dossier d'analyse et la liste des documents avec lesquels on va pouvoir chatter
     
     path('chatapp/talk/', chatapp_talk, name="chatapp_talk"), # envoi une question sur le document mémorisé en cours (multi document non implémenté)

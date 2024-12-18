@@ -36,7 +36,14 @@ function plot_response(json_plot) {
         let latlng = [markerData.lat, markerData.lng]
         //let marker = L.marker(latlng).addTo(map);
         let marker = L.marker(latlng)
-        let popup = L.popup().setLatLng(latlng).setContent("<b>" + markerData.title + "</b><br>" + markerData.contexte + "<br>page : " + markerData.page) // .openOn(map);
+        let popupContent = `
+            <b>${markerData.title}</b><br>
+            ${markerData.contexte}<br>
+            Page : ${markerData.page}<br>
+            <button onclick='chatapp_talk(${JSON.stringify(markerData.contexte)})'>Cliquez ici</button>
+        `;
+
+        let popup = L.popup().setLatLng(latlng).setContent(popupContent) // .openOn(map);
         marker.bindPopup(popup)
         marker.on('dragend', function (event) {
             let position = this.getLatLng();

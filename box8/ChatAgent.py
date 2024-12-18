@@ -102,35 +102,15 @@ def choose_tool(src):
     
 
 
-
-
-
-
-def chat_memorize(pdf, question , history=None, llm="openai"):
-    """
-    Extrait le texte de toutes les pages d'un fichier PDF, résume chaque page en tenant compte des précédentes,
-    et enregistre le résumé dans un fichier texte.
-    
-    
-
-    :param pdf: Chemin vers le fichier PDF.
-    :param question: Question ou objectif global à considérer dans le résumé.
-    :param history: Historique initial des résumés, par défaut None.
-    :param llm: Modèle de langage à utiliser, par défaut "openai".
-    :return: Résumé complet du document.
-    """
-    # Chemin du fichier de résumé
-    txt_path = pdf + ".txt"
-    
-    
+def extract_pages(src):
     texte_pages = []
 
     try:
-        extension = os.path.splitext(pdf)[1].lower()
+        extension = os.path.splitext(src)[1].lower()
 
         # Extraction pour les fichiers PDF
         if extension == '.pdf':
-            with open(pdf, 'rb') as pdf_file:
+            with open(src, 'rb') as pdf_file:
                 reader = PyPDF2.PdfReader(pdf_file)
 
                 for page_num, page in enumerate(reader.pages):
@@ -146,7 +126,7 @@ def chat_memorize(pdf, question , history=None, llm="openai"):
         # Extraction pour les fichiers DOCX
         elif extension == '.docx':
             try:
-                doc = Document(pdf)
+                doc = Document(src)
                 paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
 
                 # Grouper les paragraphes par blocs de 11
@@ -168,10 +148,272 @@ def chat_memorize(pdf, question , history=None, llm="openai"):
             print("Format de fichier non pris en charge. Seuls les fichiers PDF et DOCX sont acceptés.")
 
     except FileNotFoundError:
-        print(f"Le fichier {pdf} est introuvable.")
+        print(f"Le fichier {src} est introuvable.")
     except Exception as e:
         print(f"Une erreur s'est produite : {e}")
+    
+    return texte_pages
 
+
+
+
+
+
+def chat_summarize (pdf, pages=6 , history=None, llm="openai"):
+    """
+    Extrait des insights à partir d'un document PDF en utilisant CrewAI.
+
+    Paramètres :
+    - pdf (str) : Le chemin vers le fichier PDF à analyser.
+    - pages (str) : nombre de pages.
+    - history (list, optionnel) : Un historique des interactions précédentes (par défaut, None).
+    - llm (str) : Le modèle de langage à utiliser (par défaut, "openai").
+
+    Retourne :
+    - list : Une liste d'insights sous forme de tableau JSON.
+    """
+    firstpages = extract_pages(src=pdf)
+    # Prendre uniquement les 6 premières pages
+    try:
+        entier = int(pages)
+    except ValueError:
+        print("La chaîne ne peut pas être convertie en entier")
+        entier = 6
+        
+    content = "\n".join(firstpages[:entier])
+
+    # Définition des agents
+    title_extractor = Agent(
+        name="Title Extractor",
+        role="Expert en identification de titres",
+        goal="Identifier le titre du document",
+        backstory=f"""
+            Un spécialiste dans l'identification rapide de titres et de sujets principaux 
+            à partir d'extraits de documents textuels."""
+    )
+
+    author_audience_extractor = Agent(
+        name="Author and Audience Extractor",
+        role="Expert en analyse d'auteur et de public cible",
+        goal="Identifier qui a écrit le document et à qui il est adressé",
+        backstory="""
+            Un analyste expérimenté capable de déduire l'auteur et le public cible 
+            d'un texte en étudiant le style et le contenu."""
+    )
+
+    subject_purpose_extractor = Agent(
+        name="Subject and Purpose Extractor",
+        role="Expert en analyse de contenu",
+        goal="Déterminer le sujet du document et son but",
+        backstory="""
+            Un expert en compréhension et analyse de texte, capable de résumer 
+            les thèmes principaux et les objectifs sous-jacents d'un document."""
+    )
+
+    # Définition des tâches
+    title_task = Task(
+        name="Extraction du titre",
+        agent=title_extractor,
+        description=f"""
+            À partir du texte suivant, identifie le titre du document :
+            {content}""",
+        expected_output="Le titre du document."
+    )
+
+    author_audience_task = Task(
+        name="Identification de l'auteur et du public cible",
+        agent=author_audience_extractor,
+        description=f"""
+            En te basant sur le texte suivant, détermine qui a écrit le document 
+            et à quel public il s'adresse :
+            {content}""",
+        expected_output="L'auteur du document et le public cible."
+    )
+
+    subject_purpose_task = Task(
+        name="Analyse du sujet et du but",
+        agent=subject_purpose_extractor,
+        description=f"""
+            Analyse le texte suivant pour déterminer le sujet du document et son objectif :
+            {content}""",
+        expected_output="Le sujet et le but du document avec un titre des sous titres et structuré au format markdown."
+    )
+
+    # Création de l'équipe CrewAI
+    crew = Crew(
+        agents=[title_extractor, author_audience_extractor, subject_purpose_extractor],
+        tasks=[title_task, author_audience_task, subject_purpose_task]
+    )
+
+    # Exécution des tâches par les agents
+    result = crew.kickoff()
+    summary = result.raw
+    print(summary)
+    # Retourner le résultat final
+    # Enregistrer le résumé dans un fichier texte
+    # Chemin du fichier de résumé
+    txt_path = pdf + ".txt"
+    try:
+        with open(txt_path, "w", encoding="utf-8") as file:
+            file.write(summary)
+        print(f"Résumé enregistré dans le fichier : {txt_path}")
+    except Exception as e:
+        print(f"Erreur lors de l'enregistrement du résumé : {e}")
+    return summary
+
+
+
+
+def chat_summarize_ifnotexists(pdf, pages=6 , history=None, llm="openai"):
+    
+    txt_path = pdf + ".txt"
+    if os.path.exists(txt_path):
+        try:
+            with open(txt_path, "r", encoding="utf-8") as file:
+                content = file.read()  # Lire tout le contenu du fichier
+            print(f"Contenu du fichier :\n{content}")
+        except Exception as e:
+            print(f"Erreur lors de la lecture du fichier : {e}")
+    else:
+        print(f"Le fichier {pdf} n'existe pas, on le génère.")
+        content = chat_summarize(pdf, pages=pages , history=history, llm=llm)
+    return content
+
+
+def extract_insights(pdf, pages=6 , history=None, llm="openai"):
+    try:
+        pages = int(pages)
+    except ValueError:
+        print("La chaîne ne peut pas être convertie en entier")
+        pages = 6
+    summary = chat_summarize_ifnotexists(pdf=pdf, pages=pages , history=history, llm=llm)
+    insight_extractor = Agent(
+        name="Insight Extractor",
+        role="Analyste de contenu",
+        goal="Identifier des insights clés à partir du résumé",
+        verbose=True,
+        tools=[choose_tool(src=pdf)],
+        backstory="""
+            Un expert en extraction d'insights, capable de trouver des informations 
+            précieuses et des observations pertinentes dans le texte."""
+    )
+
+    insight_task = Task(
+        description=f"""
+        Analyse le texte suivant et identifie les insights clés du document sachant que le résumé du document est le suivant : 
+        {summary}""",
+        expected_output=f"""
+        Un tableau json correspondant à la liste des insights.
+        La structure du json à respecter : 
+        [
+            {{
+                "title": "nom de l'insight",
+                "description": "description détaillée de l'insight et de la raison pour laquelle il a été formulé"
+            }},
+            ...
+        ]
+        Retournez uniquement le JSON au format demandé sans autre explication.
+        """,
+        agent=insight_extractor,
+    )
+    
+    crew = Crew(
+        agents=[insight_extractor],
+        tasks=[insight_task],
+        process=Process.sequential
+    )
+    result = crew.kickoff()
+    donnees_json = json.loads(result.raw)
+    
+    return donnees_json
+
+
+
+
+
+""" métier sommaire """
+def chat_sommaire_old(pdf, question , history=None, llm="openai"):    
+    
+    try : 
+    
+        lecteur = Agent(
+                role="Analyste",
+                goal="L'analyste extrait le informations du document de manière à remplir un tableau structuré",
+                allow_delegation=False,
+                verbose=True,
+                backstory=f"""
+                    Fort de son expertise dans le domaine de la question l'analyste extrait les informations demandées à partir du document
+                    """,
+                llm = ChooseLLM()
+            )
+
+        if pdf.endswith("just.chat"):
+            lecteur.goal = f"""
+                L'analyste répond à la question de manière à remplir un tableau structuré
+            """
+            lecteur.backstory=f"""
+                Fort de son expertise l'analyste extrait les informations demandées permettant de structurer la réponses à la question
+                    """
+        else : 
+            lecteur.backstory=f"""
+                    Fort de son expertise en analyse de texte l'analyste littéraire extrait les informations demandées à partir du document
+                    """
+            lecteur.tools=[choose_tool(src=pdf)]
+        
+        analyseJson = Task(
+            description=f"""
+            Extraire les informations permettant de répondre à la question posée : 
+            Question : {question}""",
+            expected_output=f"""
+            Un tableau json correspondant à la liste des réponses trouvées par l'analyste à la question posée.
+            La structure du json à respecter : 
+            [
+                {{
+                    "title": "nom de l'information trouvée",
+                    "description": "description détaillée de la réponse "
+                }},
+                ...
+            ]
+            Retournez uniquement le JSON au format demandé sans autre explication.
+            """,
+            agent=lecteur,
+        )
+        
+        crew = Crew(
+            agents=[lecteur],
+            tasks=[analyseJson],
+            process=Process.sequential
+        )
+
+    
+        result = crew.kickoff()
+        donnees_json = json.loads(result.raw)
+    except Exception as e:
+        result = {e}
+        
+    return donnees_json
+
+
+
+
+
+
+def chat_memorize_old(pdf, question , history=None, llm="openai"):
+    """
+    Extrait le texte de toutes les pages d'un fichier PDF, résume chaque page en tenant compte des précédentes,
+    et enregistre le résumé dans un fichier texte.
+
+    :param pdf: Chemin vers le fichier PDF.
+    :param question: Question ou objectif global à considérer dans le résumé.
+    :param history: Historique initial des résumés, par défaut None.
+    :param llm: Modèle de langage à utiliser, par défaut "openai".
+    :return: Résumé complet du document.
+    """
+    # Chemin du fichier de résumé
+    txt_path = pdf + ".txt"
+    
+    texte_pages = extract_pages(pdf)
+    
     # analyse json de chaque page
     history = []
     resume = ""
@@ -242,134 +484,6 @@ def chat_memorize(pdf, question , history=None, llm="openai"):
 
 
 
-
-
-
-
-
-
-
-""" métier CCTP """
-def chat_sommaire(pdf, question , history=None, llm="openai"):    
-    
-    try : 
-    
-        lecteur = Agent(
-                role="Analyste",
-                goal="L'analyste extrait le informations du document de manière à remplir un tableau structuré",
-                allow_delegation=False,
-                verbose=True,
-                backstory=f"""
-                    Fort de son expertise dans le domaine de la question l'analyste extrait les informations demandées à partir du document
-                    """,
-                llm = ChooseLLM()
-            )
-
-        if pdf.endswith("just.chat"):
-            lecteur.goal = f"""
-                L'analyste répond à la question de manière à remplir un tableau structuré
-            """
-            lecteur.backstory=f"""
-                Fort de son expertise l'analyste extrait les informations demandées permettant de structurer la réponses à la question
-                    """
-        else : 
-            lecteur.backstory=f"""
-                    Fort de son expertise en analyse de texte l'analyste littéraire extrait les informations demandées à partir du document
-                    """
-            lecteur.tools=[choose_tool(src=pdf)]
-        
-        analyseJson = Task(
-            description=f"""
-            Extraire les informations permettant de répondre à la question posée : 
-            Question : {question}""",
-            expected_output=f"""
-            Un tableau json correspondant à la liste des réponses trouvées par l'analyste à la question posée.
-            La structure du json à respecter : 
-            [
-                {{
-                    "title": "nom de l'information trouvée",
-                    "description": "description détaillée de la réponse "
-                }},
-                ...
-            ]
-            Retournez uniquement le JSON au format demandé sans autre explication.
-            """,
-            agent=lecteur,
-        )
-        
-        crew = Crew(
-            agents=[lecteur],
-            tasks=[analyseJson],
-            process=Process.sequential
-        )
-
-    
-        result = crew.kickoff()
-        donnees_json = json.loads(result.raw)
-    except Exception as e:
-        result = {e}
-        
-    return donnees_json
-
-
-
-""" métier CCTP """
-def chat_cctp_lots(pdf, question , history=None, llm="openai"):    
-    chef_projet = Agent(
-            role="Chef de projet",
-            goal="Le chef de projet coordonne les intervenants pour la rédaction du cahier des charges",
-            allow_delegation=False,
-            verbose=True,
-            backstory=(
-                f"""
-                Fort de son expérience en gestion de projet de construction le chef de projet 
-                coordonne les différents intervenants et s'assure de la rédaction d'un cahier des charges correspondant 
-                aux besoins de l'installation à construire
-                """
-            ),
-            tools=[choose_tool(src=pdf)],
-            llm = ChooseLLM()
-        )
-
-    
-    allotissement = Task(
-        description="déterminer les lots techniques nécessaires au projet de construction",
-        expected_output=f"""
-        Un tableau json correspondant à la liste des lots de travaux à mobiliser pour le projet.
-        Les lots doivent être constitués de manière à consulter des entreprises.
-        La structure du json à respecter : 
-        [
-            {{
-                "title": "nom du lot technique en français",
-                "description": "description en français des travaux fournitures et prestations à charge du lot technique"
-            }},
-            ...
-        ]
-        Retournez uniquement le JSON demandé sans autre explication.
-        """,
-        agent=chef_projet,
-    )
-    
-    crew = Crew(
-        agents=[chef_projet],
-        tasks=[allotissement],
-        process=Process.sequential
-    )
-
-    try : 
-        result = crew.kickoff()
-        donnees_json = json.loads(result.raw)
-    except Exception as e:
-        result = {e}
-        
-    return donnees_json
-
-
-
-
-
-import os
-import json
 
 def save_history(pdf, history=None, question="", response=""):
     if history is None:
@@ -621,7 +735,7 @@ def chat_enhance(originalQuestion, originalText, pdf, question , history=None, l
             role="Analyste documentaire",
             goal=goal,
             backstory=f"""
-            Lecteur chevronné, l'analyste approfondit la rédaction du texte initial en développer sont contenu.
+            Lecteur chevronné, l'analyste approfondit la rédaction du texte initial et en développer son contenu.
             """,
             allow_delegation=False,
             verbose=True,

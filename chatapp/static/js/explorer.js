@@ -132,18 +132,19 @@ $(document).ready(function () {
     
     // lance la vectorisation d'un document en async
     function chatapp_memorize_doc(listItem, entry){
+      let pages = prompt("Entrez le nombre de pages que vous souhaiter résumer :", "6");
+      analyse_courante.prompt=pages
       analyse_courante.analyse = entry.parent_analyse
       analyse_courante.entries = [entry.caption]
       console.log("chatapp_memorize_doc",analyse_courante)
-      var confirmation = confirm("Êtes-vous sûr de vouloir vectoriser le document, l'opération peut prendre un certain temps ?");
-      if (confirmation) {
-        chatapp_memorize_doc_ajax(listItem, entry)
-      }
+      chatapp_memorize_doc_ajax(listItem, entry)
+      
     }
 
     function chatapp_memorize_doc_ajax(listItem, entry){
+      
       $.ajax({
-        url: chatapp_memorize,
+        url: chatapp_summarize,
         type: 'POST',
         data: JSON.stringify(analyse_courante), 
         contentType: 'application/json', 
@@ -254,7 +255,7 @@ $(document).ready(function () {
                 plot_response(response.conversation[0].description)
             },
             error: function(xhr, status, error) { // Callback en cas d'erreur
-                console.error("Erreur lors de la récupération des données :", error);
+                console.warn("Map : Erreur lors de la récupération des données", error);
             }
           });
 
@@ -413,7 +414,7 @@ $(document).ready(function () {
       if(new_analyse_name==""){return false} 
       $.ajax({
           type: "POST",
-          url: "{% url 'chatapp:chatapp_ajax_new_analyse' %}",
+          url: chatapp_ajax_new_analyse,
           data: JSON.stringify({'analyse': new_analyse_name}),
           contentType: 'application/json',
           beforeSend: function(xhr, settings){

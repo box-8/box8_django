@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
 from lorem_text import lorem
-from box8.ChatAgent import chat, chat_enhance, chat_memorize, chat_sommaire, delete_entry
+from box8.ChatAgent import chat, chat_enhance, chat_summarize, extract_insights, delete_entry
 from box8.utils_pdf import PdfUtils
 
 import markdown
@@ -542,11 +542,36 @@ propose un sommaire d'analyse
 def chatapp_sommaire(request):
     analyse, entries, prompt, history, llm, pdf, data = gen_request(request=request)
     
-    if request.session.get('llm_debug'):
-        donnees_json = [{"title": "Remplacement du mécanisme de WC encastré", "description": "Démontage et déconnexion de la plaque de déclenchement pour accéder au mécanisme du WC encastré, démontage et déconnexion de l'ancien mécanisme de chasse d'eau qui fuit, détartrage du réservoir, installation du nouveau système, reconnexion de l'ensemble, remise en place de la plaque de déclenchement et remise en service de l'installation. Coût total de 308,00 €."}, {"title": "Réparation de fuite sur colonne de douche", "description": "Coupure de l'eau et vidange du réseau, démontage et déconnexion de la colonne de douche, localisation et modification de la fuite d'eau, remise en place de la colonne de douche et test d'étanchéité à l'eau et de bon fonctionnement. Coût total de 553,30 €, y compris la gestion des déchets."}]
+    if request.session.get('llm_debug', False):
+        donnees_json = [
+    {
+        "title": "Objectif principal du document",
+        "description": "Le document vise à fournir un Cahier des Clauses Techniques Particulières (CCTP) détaillé qui définit les spécifications techniques, les obligations des entreprises, les normes et règlements à suivre, ainsi que les prescriptions générales pour garantir une exécution conforme aux délais et exigences de qualité. Cela est crucial pour le bon déroulement des travaux tout en respectant les normes de santé."
+    },
+    {
+        "title": "Public cible",
+        "description": "Le public ciblé par ce document comprend principalement les entreprises de construction et d'ingénierie. Cela souligne l'importance de préparer un document technique qui répond à leurs besoins spécifiques pour soumissionner efficacement sur le lot n°4."
+    },
+    {
+        "title": "Importance de la conformité aux normes",
+        "description": "Le document souligne l'importance d'assurer que les travaux se conforment aux normes de santé et de sécurité en milieu hospitalier, ce qui est essentiel non seulement pour le bien-être des patients et du personnel mais aussi pour éviter des complications légales éventuelles."
+    },
+    {
+        "title": "Continuité des services",
+        "description": "Le CCTP prend en compte la nécessité de maintenir la continuité des services existants durant la phase d'extension, ce qui est vital dans un établissement de santé pour assurer que les soins aux patients ne soient pas interrompus."
+    },
+    {
+        "title": "Collaboration avec divers acteurs",
+        "description": "Le document implique plusieurs parties prenantes, notamment le Maître d’Ouvrage (Centre Hospitalier de Béziers) et le Bureau d’Études (EREN Ingénierie), ce qui nécessite une coordination efficace pour le succès du projet."
+    },
+    {
+        "title": "Prescriptions générales et spécifiques",
+        "description": "Le CCTP inclut des prescriptions générales et spécifiques concernant les travaux de plomberie, Chauffage, Ventilation, et Climatisation, ce qui permet d'établir des attentes claires pour les entreprises soumissionnaires."
+    }
+]
         return JsonResponse(donnees_json, safe=False)
     
-    response = chat_sommaire(pdf=pdf, question = prompt, history = history, llm=llm)
+    response = extract_insights(pdf=pdf, pages = prompt, history = history, llm=llm)
     return JsonResponse(response, safe=False)
 
 
@@ -568,7 +593,7 @@ def chatapp_enhance(request):
     originalQuestion = data.get('originalQuestion', '') # question initiale
     llm_debug = request.session.get('llm_debug', False)
     
-    # print(history)
+    
     
     if llm_debug:
         pass
@@ -684,21 +709,21 @@ def format_text(text):
 
 
 # mémorize document (mode mulit-doc non implémenté)
-def chatapp_memorize(request):
+def chatapp_summarize(request):
     analyse, entries, prompt, history, llm, pdf, data = gen_request(request=request)
     
     llm_debug = request.session.get('llm_debug', False)
     
     if llm_debug: 
         prompt = '\n\n'.join([lorem.paragraph() for _ in range(3)])
-        response_data = build_talk_response(f"chatapp_memorize : réponse à la question : {prompt}","warning")
+        response_data = build_talk_response(f"chatapp_summarize : nombre de pages : {prompt}","warning")
         return JsonResponse(response_data)
 
     if len(entries)<1:
         response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
         return JsonResponse(response_data)
     
-    response = chat_memorize(pdf=pdf, question = prompt, history = history, llm=llm)
+    response = chat_summarize(pdf=pdf, pages = prompt, history = history, llm=llm)
     response_data = build_talk_response(response,"warning")
     return JsonResponse(response_data)
 
