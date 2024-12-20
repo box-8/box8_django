@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
 from lorem_text import lorem
-from box8.ChatAgent import chat, chat_enhance, chat_summarize, extract_insights, delete_entry
+from box8.ChatAgent import chat, chat_enhance, chat_summarize, extract_insights, delete_entry,chat_save_conversation
 from box8.utils_pdf import PdfUtils
 
 import markdown
@@ -482,6 +482,15 @@ def chatapp_get_conversation(request):
     print(response_data)
     return JsonResponse(response_data)
 
+def chatapp_save_conversation(request):
+    analyse, entries, prompt, history, llm, pdf, data = gen_request(request=request)
+    
+    json_conversation_path = pdf+".json"
+    conversation_json = chat_save_conversation(src=json_conversation_path, history=history) 
+    
+    response_data = getjson_conversation(json_conversation_path)
+    print(response_data)
+    return JsonResponse(response_data)
 
 
 
@@ -493,7 +502,7 @@ def chatapp_talk(request):
     
     if not history:
         history=[]
-    print(history)
+    # print(history)
     
     if request.session.get('llm_debug', False):
         # pdf = "llm_debug"

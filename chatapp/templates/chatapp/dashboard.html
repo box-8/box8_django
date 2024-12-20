@@ -47,6 +47,8 @@
   var chatapp_enhance_url = '{% url 'chatapp:chatapp_enhance' %}'
   var chatapp_sommaire = '{% url 'chatapp:chatapp_sommaire' %}'
   var chatapp_get_conversation = '{% url 'chatapp:chatapp_get_conversation' %}'
+  var chatapp_save_conversation = '{% url 'chatapp:chatapp_save_conversation' %}'
+  
   var chatapp_word = '{% url 'chatapp:chatapp_word' %}'
   var chatapp_file_to_rag = '{% url 'chatapp:chatapp_file_to_rag' %}'
   var chatapp_llm = '{% url 'chatapp:chatapp_llm' %}'
@@ -58,7 +60,7 @@
 {% block title %}Analyse documentaire{% endblock title %}
 
 {% block content_left %}
-<h5>Dossiers d'analyse</h5>
+<h5>{{welcome}}</h5>
 <div class="mb-1 btn-group">
   <a href="javascript:void(0)" id="btn_modal_open_new_analyse" class="btn btn-outline-primary" >Nouveau ...</a>
   <a href="javascript:void(0)" id="btn_modal_open_delete_analyse" class="btn btn-outline-primary" >Supprimer</a>
@@ -76,7 +78,7 @@
 {% endblock content_left %}
 
 {% block content %}
-<h3>{{welcome}}</h3>
+
 <br>
 <section >
     <div class="container" data-aos="fade-up">
@@ -113,6 +115,7 @@
             <button id="prompt-sommaire-openmodal" class="btn btn-outline-secondary" type="button">Insights</button>
             <button id="prompt-word" class="btn btn-outline-secondary" type="button">Générer le Word</button>
             <button id="prompt-json-conversation" class="btn btn-outline-secondary" type="button">Get Conversation</button>
+            <button id="prompt-json-conversation-save" class="btn btn-outline-secondary" type="button">Save Conversation</button>
             <button id="prompt-clear" class="btn btn-outline-secondary" type="button">Clear Conversation</button>
             <br/>
             <label>
@@ -335,6 +338,7 @@
       </div>
       <div class="modal-footer">
         <button id="prompt-sommaire" class="btn btn-primary" type="button">Nouvelle analyse</button>
+        <button id="clear-insights" class="btn btn-danger" type="button">Effacer</button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
       </div>
     </div>
@@ -597,6 +601,14 @@
         qa.aRow.show();
         Col.text("⬇️");
       };
+      qa.togglemask = function () {
+        if (qa.aRow.is(':visible')) {
+          qa.mask();
+        } else {
+          qa.unmask();
+        }
+      };
+
     
       qa.qToolbarSend.click(function (event) {
         chatapp_enhance(qa, qa.qToolbarInput, qa.aHtml);
@@ -607,11 +619,11 @@
           chatapp_enhance(qa, qa.qToolbarInput, qa.aHtml);
         }
       });
-    
+      
       qa.qHtml.click(function (event) {
         $(".qa-toolbar").hide();
         qa.qToolbar.toggle();
-        qa.unmask()
+        qa.togglemask()
       });
     
       qa.aHtml.click(function (event) {
@@ -715,9 +727,37 @@
         }
       });
     });
-
+    $("#clear-insights").click(function(){
+      $("#insights").html("");
+  });
     
 
+
+
+
+    
+    $("#prompt-json-conversation-save").click(function(){
+      analyse_courante.history = ConversationArray("text")
+      
+      $.ajax({
+        url: chatapp_save_conversation,
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          $('#prompt-clear').click()
+        },
+        success: function(response) {
+            console.log(response.conversation);
+            setSommaire(response.conversation)
+        },
+        error: function(e) {
+            console.log(e);
+        }
+      });
+      
+    })
     // reprend la conversation sélectionnée
     $("#prompt-json-conversation").click(function(){
       $.ajax({
@@ -727,7 +767,7 @@
         contentType: 'application/json', 
         beforeSend: function(xhr, settings){
           xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-          $('#prompt-clear').click()
+          //$('#prompt-clear').click()
         },
         success: function(response) {
             console.log(response.conversation);

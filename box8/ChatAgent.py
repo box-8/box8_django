@@ -484,6 +484,34 @@ def chat_memorize_old(pdf, question , history=None, llm="openai"):
 
 
 
+def chat_save_conversation(src, history=None):
+    if history is None:
+        history = []
+    
+    # Convertit l'historique au format title/description
+    conversation = []
+    for qa_pair in reversed(history):
+        question = qa_pair[0]
+        response = qa_pair[1]
+        conversation.append({
+            "title": question,
+            "description": response
+        })
+
+    # Structure JSON finale
+    conversation_json = {
+        "conversationPath": src,
+        "conversation": conversation
+    }
+
+    # Enregistre l'objet JSON mis à jour dans le fichier
+    with open(src, "w", encoding="utf-8") as f:
+        json.dump(conversation_json, f, indent=4, ensure_ascii=False)
+
+    print(f"Conversation sauvegardée en JSON : {src}")
+
+    return conversation_json
+
 
 def save_history(pdf, history=None, question="", response=""):
     if history is None:
