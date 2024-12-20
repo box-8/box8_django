@@ -2,10 +2,36 @@
 {%load static %}
 {% block css %}
   <link rel="stylesheet" href="{% static 'css/chat.css' %}">
+  <style>
+    #fixedElement {
+      position: fixed;
+      bottom: 0px;
+      width: 100%;
+      background-color: #FEFEFE;
+      padding: 5px;
+      text-align: center;
+      box-shadow: 0 -2px 3px rgba(0, 0, 0, 0.2);
+      z-index:999;
+    }
+    .qa-selected{
+      background-color: #FFFFFF;
+    }
+    .qa-selected-not{
+      background-color: #FAFAFA;
+    }
+
+  </style>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
 {% endblock css %}
+
+
+
+
 {% block js %}
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
 <script>
-  var chatapp_memorize = '{% url 'chatapp:chatapp_memorize' %}'
+  var chatapp_summarize = '{% url 'chatapp:chatapp_summarize' %}'
   var chatapp_delete_file = '{% url 'chatapp:chatapp_delete_file' %}'
   var chatapp_ajax_analyses = '{% url 'chatapp:chatapp_ajax_analyses' %}'
   var chatapp_ajax_delete_analyse = '{% url 'chatapp:chatapp_ajax_delete_analyse' %}'
@@ -14,12 +40,26 @@
   var chatapp_upload = '{% url 'chatapp:chatapp_upload' %}'
   var chatapp_ajax_set_analyse_url = '{% url 'chatapp:chatapp_ajax_set_analyse' %}'
   var afficher_resume_vectorisation = '{% url "chatapp:afficher_resume_vectorisation" "0" "0" %}'
+  var chatapp_ajax_new_analyse = "{% url 'chatapp:chatapp_ajax_new_analyse' %}"
+
 </script>
   <script src="{% static 'js/explorer.js' %}" ></script>
 
+
+<!-- Script chats -->
 <script>
   var chatapp_talk = '{% url 'chatapp:chatapp_talk' %}'
-</script>
+
+  var chatapp_delete_conversation_entry = '{% url 'chatapp:chatapp_delete_conversation_entry' %}'
+  var chatapp_enhance_url = '{% url 'chatapp:chatapp_enhance' %}'
+  var chatapp_sommaire = '{% url 'chatapp:chatapp_sommaire' %}'
+  var chatapp_get_conversation = '{% url 'chatapp:chatapp_get_conversation' %}'
+  var chatapp_save_conversation = '{% url 'chatapp:chatapp_save_conversation' %}'
+  
+  var chatapp_word = '{% url 'chatapp:chatapp_word' %}'
+  var chatapp_file_to_rag = '{% url 'chatapp:chatapp_file_to_rag' %}'
+  var chatapp_llm = '{% url 'chatapp:chatapp_llm' %}'
+  </script>
   <script src="{% static 'js/map.js' %}" ></script>
 
 
@@ -27,7 +67,7 @@
 {% block title %}Analyse documentaire{% endblock title %}
 
 {% block content_left %}
-<h5>Dossiers d'analyse</h5>
+<h5>{{welcome}}</h5>
 <div class="mb-1 btn-group">
   <a href="javascript:void(0)" id="btn_modal_open_new_analyse" class="btn btn-outline-primary" >Nouveau ...</a>
   <a href="javascript:void(0)" id="btn_modal_open_delete_analyse" class="btn btn-outline-primary" >Supprimer</a>
@@ -40,10 +80,12 @@
   Choisir un dossier d'analyse ...
 </ul>
 
+
+
 {% endblock content_left %}
 
 {% block content %}
-<h3>{{welcome}}</h3>
+
 <br>
 <section >
     <div class="container" data-aos="fade-up">
@@ -53,9 +95,7 @@
           <button class="nav-link active" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-panel" type="button" role="tab" aria-controls="chat-panel" aria-selected="false">Conversation</button>
         </li>
 
-        <li class="nav-item" role="presentation">
-          <button class="nav-link " id="fichier-tab" data-bs-toggle="tab" data-bs-target="#fichier-panel" type="button" role="tab" aria-controls="fichier-panel" aria-selected="true">Fichier</button>
-        </li>
+        
 
         <li class="nav-item" role="presentation">
           <button class="nav-link" id="carte-tab" data-bs-toggle="tab" data-bs-target="#carte-panel" type="button" role="tab" aria-controls="carte-panel" aria-selected="false">Carte</button>
@@ -77,70 +117,62 @@
         <div class="tab-pane fade show active" id="chat-panel" role="tabpanel" aria-labelledby="chat-tab">
           <div class="section-title pt-3">
             <h4 id="chat-panel-title">Conversation</h4>
-            <button id="prompt-sommaire" class="btn btn-outline-secondary" type="button">Sommaire</button>
+            <button id="prompt-sommaire-openmodal" class="btn btn-outline-secondary" type="button">Insights</button>
             <button id="prompt-word" class="btn btn-outline-secondary" type="button">Générer le Word</button>
             <button id="prompt-json-conversation" class="btn btn-outline-secondary" type="button">Get Conversation</button>
+            <button id="prompt-json-conversation-save" class="btn btn-outline-secondary" type="button">Save Conversation</button>
+            <button id="prompt-clear" class="btn btn-outline-secondary" type="button">Clear Conversation</button>
             <br/>
             <label>
               <input type="checkbox" name="file_to_rag" id="file_to_rag" value="" {% if request.session.file_to_rag == ".txt" %}checked{% endif %}> Utiliser le résumé au lieu du fichier
             </label>
             
             <h5>Historique des conversations {% if request.session.llm_debug %}(Debug){% endif %}</h5>
-            <div class="row">
+            <div class="row" id="fixedElement">
               <div class="col-8">
-                <div class="input-group mb-3">
+                <div class="input-group ">
                   <input id="prompt" type="text" class="form-control" placeholder="Prompt ..." >
-                  <button id="prompt-send" class="btn btn-outline-secondary" type="button">Send</button>
-                  <button id="prompt-clear" class="btn btn-outline-secondary" type="button">Clear</button>
+                  <button id="prompt-send" class="btn btn-primary" type="button">Send</button>
+                  <button id="prompt-expand-toggle" class="btn btn-light" type="button">⤴️</button>
+                  
                   
                 </div>
               </div>
             </div>
             
           </div>
-          <div id="conversation" class="input-group mb-3"></div>
+          <div id="conversation" class=" mb-3"></div>
+
+          
         </div>
 
 
         <div class="tab-pane fade  " id="fiches-panel" role="tabpanel" aria-labelledby="fiches-tab">
           <div class="section-title pt-3">
-            <h4 id="fiches-panel-title">Dossier</h4>
-            <h5>Actions disponibles</h5>
-
-            <div class="mb-1 btn-group">
-              <a href="javascript:void(0)" id="btn_modal_open_upload" class="btn btn-outline-primary" >Upload ...</a>
-              <a href="javascript:void(0)" id="btn_fusion_pdf" class="btn btn-outline-primary" >Fusionner les pdf</a>
-              <a href="javascript:void(0)" id="chroma_reset" class="btn btn-outline-primary" >Restart Chroma</a>
-            </div>
+            <h5>Dossier</h5>
+            <h6 id="fiches-panel-title">...</h6>
             
-          </div>
-        </div>
-
-        <div class="tab-pane fade" id="fichier-panel" role="tabpanel" aria-labelledby="fichier-tab">
-          <div class="section-title pt-3">
-            <h4 id="fichier-panel-title">Fichier</h4>
-            <h5>Actions disponibles</h5>
+            
+              <a href="javascript:void(0)" id="btn_modal_open_upload" class="btn btn-outline-primary" >Importer un fichier ...</a>
+              <a href="javascript:void(0)" id="btn_fusion_pdf" class="btn btn-outline-primary" >Fusionner les pdf</a>
+              
+            
+            
+            <h5>Fichier</h5>
+            <h6 id="fichier-panel-title">...</h6>
             <div class="row">
               <div class="col-12">
-                <div class="mb-1 btn-group">
-                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-delete" >Supprimer</a>
-                </div>
-              </div> 
-            </div>
-            <div class="row" >
-              <div class="col-12">
-                <h5>Informations du fichier sélectionné</h5>
-                <div class="mb-1 btn-group">
-                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-iframe">Ouvrir</a>
-                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-vectoriser" >Résumer</a>
-                </div>
-                </br>
-                <div id="filedetails">Pas de contenu, sélectionner un fichier</div>
+                
+                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-iframe">Ouvrir dans l'explorateur</a>
+                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-delete" >Supprimer du dossier</a>
+                
               </div> 
             </div>
             
           </div>
         </div>
+
+        
 
         
         <div class="tab-pane fade " id="carte-panel" role="tabpanel" aria-labelledby="carte-tab">
@@ -218,7 +250,10 @@
                   </div>
 
                     <button type="submit" class="btn btn-primary mt-3">Valider</button>
+                    
                 </form>
+                <br />
+                <a href="javascript:void(0)" id="chroma_reset" class="btn btn-outline-primary" >Restart Chroma</a>
           </div>
         </div>
         
@@ -283,87 +318,96 @@
 
 
 
-<!-- Script gestion dossiers analyse et upload fichiers -->
+
+
+<!-- Modal modal_upload_files -->
+<div class="modal fade" id="modal_insights" tabindex="-1" aria-labelledby="InsightsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+
+      </div>
+      <div class="modal-body">
+        <h5>Résumé</h5>
+        <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-vectoriser" >Résumer</a>
+        <div id="filedetails">Pas de contenu, sélectionner un fichier</div>
+        <h5>Points clefs</h5>
+        <div id="insights" class="m-3"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="prompt-sommaire" class="btn btn-primary" type="button">Nouvelle analyse</button>
+        <button id="clear-insights" class="btn btn-danger" type="button">Effacer</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+
+  </div>
+</div> 
+
+
+
+
 <script>
   var analyse_courante = {"username":"","analyse":"","entries":[],"prompt":"", "history":[]} 
   var fichier_courant ={"filename":""}
 
-  $(document).ready(function () {
-    
+  const turndownService = new TurndownService({ headingStyle: 'atx' });;
 
 
 
-    function ConversationArray(getType){
+  function ConversationArray(getType){
       var conversationArray = [];
-      var allConversations = $('#conversation .row');
+      var allConversations = $('#conversation .container');
       // Sélectionner toutes les paires de question et réponse
       allConversations.each(function() {
-          var question = $(this).find('.alert-info').text().trim();  // Récupérer le texte de la question
-          if(getType == "text"){
-            var answer = $(this).next('.row').find('.alert-warning').text().trim();  // Récupérer le texte de la réponse
+        var container = $(this)
+        if(container.hasClass("qa-selected")){
+          var question = container.find('.alert-info').text().trim()
+          var answer = $(this).find('.alert-warning').html();
+          if (typeof answer === "undefined"){
+            console.warn("ConversationArray : entrée non trouvée ",question)
           }else{
-            var answer = $(this).next('.row').find('.alert-warning').html();  // Récupérer le texte de la réponse
+            if(getType == "text"){
+              answer = turndownService.turndown(answer);
+            }
+            
+            if (question && answer) { // Ajouter à l'array si à la fois question et réponse existent
+                conversationArray.push([question, answer]);
+            }
           }
-          // Ajouter à l'array si à la fois question et réponse existent
-          if (question && answer) { 
-              conversationArray.push([question, answer]);
-          }
+        }else{
+        }
+        
+          
       });
-      console.log(conversationArray)
+      
       return conversationArray
     }
 
-    function setSommaire(response){
-      $.each(response, function(index, QA) {
-        let qa = newQA()
-        qa.prepend(newPrompt(QA.title, "info"))
-        qa.append(newPrompt(marked.parse(QA.description), "warning")) 
-      });
-    }
-    function newQA(){
-      qa = $("<div class='container'></div>")
-      $("#conversation").prepend(qa)
-      return qa
-    }
-    function newPrompt(p, className="success"){
-      var component = $("<div class='row'></div>")
-      var component_text = $("<div class='col-11 alert alert-"+className+"'>"+p+"</div>")
-      var component_toolbar = $("<div class='col-12 input-group'></div>")
-      component.prepend(component_text)
-      component.append(component_toolbar)
-      
-      var Col=$("<div class='col-1'></div>")
-      if (className!="info"){ // llm
-        var component_tool = $("<input type='text' class='form-control'></input>")
-        component_tool.keypress(function(event) {
-          if (event.which === 13) {
-            event.preventDefault();
-            chatapp_enhance($(this), component_text);
-          }
-        });
-        
-        var component_tool0 = $("<button class='btn btn-outline-secondary'>Send</button>")
-        component_tool0.click(function(event) {
-          chatapp_enhance(component_tool, component_text);
-        });
-        var component_tool1 = $("<button class='btn btn-outline-secondary'>Delete</button>")
-        component_tool1.click(function(event) {
-          component.parent().remove()
-        });
-        var component_tool2 = $("<button class='btn btn-outline-secondary'>Select</button>")
-        component_tool2.click(function(event) {
-          component_text.toggleClass("alert-warning").toggleClass("alert-danger");
-        });
-        component_toolbar.prepend(component_tool, component_tool0, component_tool1,component_tool2)
+  $(document).ready(function () {
 
-        component.append(Col)
-      }else{
-        component.prepend(Col)
-      }
-      return component
+    var QAS = Array()
+    function setSommaire(response){
+      let lastQA 
+      $.each(response, function(index, QA) {
+        let qa = NewQA(QA.title)
+
+        if (typeof QA.description === "object"){
+          console.log("Conversation type error", QA.description)
+        }else{
+          qa.response(marked.parse(QA.description))
+        }
+         
+        $("#conversation").prepend(qa)
+        qa.mask()
+        lastQA  = qa
+      });
+      enableDragDrop()
+      scrollToQA(lastQA)
     }
+    
     $('#prompt-send').click(function(event) {
-      chatapp_talk() 
+      chatapp_talk_new() 
     });
     $('#prompt-clear').click(function(event) {
        $("#conversation").html("")
@@ -371,34 +415,64 @@
     $('#prompt').keypress(function(event) {
       if (event.which === 13) {
         event.preventDefault();
-        chatapp_talk();
+        chatapp_talk_new();
       }
     });
+    
+    
 
-    /* Fonctionnalités de chat */
-    function chatapp_talk(){
-      question = $('#prompt').val()
-      if(question==""){return false}
-      analyse_courante.prompt=question
-      analyse_courante.history = ConversationArray("text")
-      const qa = newQA();
+    
+
+    function conversationDeleteEntry(qa){
+      analyse_courante.prompt = qa.qHtml.html()
+      console.log(analyse_courante)
+      
       $.ajax({
-        url: '{% url 'chatapp:chatapp_talk' %}',
+        url: chatapp_delete_conversation_entry,
         type: 'POST',
         data: JSON.stringify(analyse_courante), 
         contentType: 'application/json', 
         beforeSend: function(xhr, settings){
           xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-          qa.prepend(newPrompt(question, "info"))
+        },
+        success: function(response) {
+            console.log(response);
+            $.toast({heading: response.state,text:response.content})
+            qa.remove()
+        },
+        error: function(e) {
+          alert("error")
+          console.log(e);
+        }
+      });
+
+    }
+
+    function chatapp_talk_new(){
+      question = $('#prompt').val()
+      if(question==""){return false}
+      analyse_courante.prompt=question
+      analyse_courante.history = ConversationArray("text")
+      let qa = NewQA(question);
+      $.ajax({
+        url: chatapp_talk,
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          $("#conversation").append(qa)
+          enableDragDrop()
+          scrollToQA(qa)
           $('#prompt').val("")
         },
         success: function(response) {
             html = marked.parse(response.content)
-            qa.append(newPrompt(html, response.state))
+            qa.response(html)
             console.log(response);
         },
         error: function(e) {
-            qa.prepend(newPrompt('Une erreur s\'est produite.', response.state))
+            $.toast({heading: response.state,text:response.content})
             $('#prompt').val(question)
             console.log(e);
         }
@@ -406,47 +480,225 @@
 
     }
 
+
+
+
     /* Fonctionnalités de chat : on développe la réponse donnée */
-    function chatapp_enhance(divQuestion, divWarning){
-      question = divQuestion.val()
-      originalText = divWarning.text()
+    function chatapp_enhance(qa){
+      
+      let question = qa.qToolbarInput.val()
+      let originalText = turndownService.turndown(qa.aHtml.html());
+      
       if(question==""){return false}
       analyse_courante.prompt=question
       analyse_courante.history = ConversationArray("text")
       analyse_courante.originalText = originalText;
-      
+      analyse_courante.originalQuestion = qa.qHtml.html();
+
+      console.log(chatapp_enhance)
+
       $.ajax({
-        url: '{% url 'chatapp:chatapp_enhance' %}',
+        url: chatapp_enhance_url,
         type: 'POST',
         data: JSON.stringify(analyse_courante), 
         contentType: 'application/json', 
         beforeSend: function(xhr, settings){
           xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-          divQuestion.val("")
-          divWarning.parent().append($("<p class='alert alert-secondary' >"+question+"</p>"))
+          qa.qToolbarInput.val("")
+          qa.aHtml.parent().append($("<p class='alert alert-secondary' >"+question+"</p>"))
         },
         success: function(response) {
-            html = marked.parse(response.content)
-            divWarning.html(html)
-            console.log(response);
+          html = marked.parse(response.content)
+          qa.aHtml.html(html)
+          console.log(response);
         },
         error: function(e) {
-            alert('Une erreur s\'est produite.')
-            console.log(e);
+          alert("Une erreur s'est produite.")
+          console.log(e);
+        }
+      });
+      
+    }
+
+    
+
+    $('#prompt-expand-toggle').click(function(event) {
+      let self = $(this)
+      if (self.text()=="⤴️") {
+        self.text("⬇️");
+        QAS.forEach(element => {
+          element.unmask();
+        });
+      } else {
+        self.text("⤴️");
+        QAS.forEach(element => {
+          element.mask();
+        });
+      }
+   });
+   
+    function NewQA(prompt) {
+      let Col = $("<div class='drag-handle col-1 text-secondary' style='cursor: move;'>⬇️</div>");
+      let qa = $("<div class='container mb-2 p-2 qa-selected'></div>");
+      
+      // Icône pour le déplacement
+      let dragHandle = $("<div class=' col-1 text-secondary' >⇅</div>");
+    
+      qa.qRow = $("<div class='row qa-question'></div>");
+      qa.qHtml = $("<div class='col-11 alert alert-info' style='cursor: pointer;'>" + prompt + "</div>");
+      qa.qToolbarRow = $("<div class='row p-2'></div>");
+      qa.qToolbar = $("<div class='col-12 input-group qa-toolbar'></div>").hide();
+      qa.qToolbarInput = $("<input type='text' class='form-control'></input>");
+      qa.qToolbarSend = $("<button class='btn btn-outline-secondary'>Update</button>");
+      qa.qToolbarDelete = $("<button class='btn btn-outline-secondary'>Delete</button>");
+      qa.qToolbarSelect = $("<button class='btn btn-outline-secondary'>Select</button>").hide();
+    
+      qa.append(qa.qRow);
+      qa.qRow.append(Col, qa.qHtml);
+    
+      qa.append(qa.qToolbarRow);
+      qa.qToolbarRow.append(qa.qToolbar);
+      qa.qToolbar.append(qa.qToolbarInput, qa.qToolbarSend, qa.qToolbarDelete, qa.qToolbarSelect);
+    
+      // Answers
+      qa.aRow = $("<div class='row qa-answer'></div>").hide();
+      qa.aHtml = $("<div class='col-11 alert alert-warning'></div>");
+    
+      qa.append(qa.aRow);
+      qa.aRow.append(qa.aHtml);
+    
+      Col.click(function (event) {
+        qa.togglemask()
+      });
+    
+      qa.response = function (value) {
+        qa.aHtml.html(value);
+        qa.aRow.slideDown();
+      };
+
+      qa.mask = function () {
+        qa.aRow.hide();
+        Col.text("⤴️");
+        qa.addClass("qa-selected-not").removeClass("qa-selected")
+      };
+      qa.unmask = function () {
+        qa.aRow.show();
+        Col.text("⬇️");
+        qa.addClass("qa-selected").removeClass("qa-selected-not")
+      };
+      qa.togglemask = function () {
+        if (qa.aRow.is(':visible')) {
+          qa.mask();
+        } else {
+          qa.unmask();
+        }
+      };
+
+    
+      qa.qToolbarSend.click(function (event) {
+        chatapp_enhance(qa, qa.qToolbarInput, qa.aHtml);
+      });
+      qa.qToolbarInput.keypress(function (event) {
+        if (event.which === 13) {
+          event.preventDefault();
+          chatapp_enhance(qa, qa.qToolbarInput, qa.aHtml);
+        }
+      });
+      
+      qa.qHtml.click(function (event) {
+        $(".qa-toolbar").hide();
+        qa.qToolbar.toggle();
+        qa.togglemask()
+      });
+    
+      /*
+        qa.aHtml.click(function (event) {
+        qa.aHtml.toggleClass("alert-warning").toggleClass("alert-danger");
+      });
+      */
+    
+      qa.qToolbarDelete.click(function (event) {
+        conversationDeleteEntry(qa);
+      });
+      QAS.push(qa)
+      return qa;
+    }
+    
+
+    function enableDragDrop() {
+      $("#conversation").sortable({
+        placeholder: "ui-state-highlight",  // Style pour le placeholder pendant le drag
+        handle: ".drag-handle",             // Permet de déplacer uniquement avec l'icône spécifique
+        cursor: "move",                     // Curseur de déplacement
+        update: function(event, ui) {
+          console.log("Ordre des questions mis à jour !");
         }
       });
     }
+    function scrollToQA(qa) {
+      $('html, body').animate({
+        scrollTop: qa.offset().top - 20  // Ajustez le décalage si nécessaire
+      }, 600);  // Durée de l'animation en millisecondes (600ms ici)
+    }
+    
+
+
+
+
+
+
+
+
+    $("#prompt-sommaire-openmodal").click(function(){
+      $("#modal_insights").modal('show')
+    })
+    function NewInsight(entry){
+      let insight = $("<div class='container' style='cursor:pointer'></div>")
+      
+      insight.qRow = $("<div class='row'></div>")
+      insight.title = $("<div class='col-12 alert alert-success m-1'>"+entry.title+"</div>")
+      
+      insight.qRow2 = $("<div class='row'></div>")
+      
+      insight.description = $("<div class='col-12 text-success  m-1'>"+entry.description+"</div>").hide()
+      
+      insight.append(insight.qRow,insight.qRow2)
+      insight.qRow.append(insight.title)
+      insight.qRow2.append(insight.description)
+
+      insight.hover(
+        function() {
+          // Lors du survol du titre, afficher la description
+          insight.description.show();
+        },
+        function() {
+          // Lorsque la souris quitte le titre, masquer la description
+          insight.description.hide();
+        }
+      );
+
+      insight.click(function(){
+        $('#prompt').val(entry.title)
+        chatapp_talk_new()
+        // insight.remove()
+      })
+      return insight
+    }
+    function setInsights(response){
+      $.each(response, function(index, entry) {
+        let insight = NewInsight(entry)
+        $("#insights").prepend(insight)
+      });
+      $("#insights").prepend($("<hr></hr>"))
+    }
+    
     
     
 
     $("#prompt-sommaire").click(function(){
-      question = $('#prompt').val()
-      if(question ==""){
-        return false
-      }
-      analyse_courante.prompt=question
+      analyse_courante.prompt=6
       $.ajax({
-        url: '{% url 'chatapp:chatapp_sommaire' %}',
+        url: chatapp_sommaire ,
         type: 'POST',
         data: JSON.stringify(analyse_courante), 
         contentType: 'application/json', 
@@ -455,30 +707,54 @@
         },
         success: function(response) {
             console.log(response);
-            setSommaire(response)
+            setInsights(response)
         },
         error: function(e) {
             console.log(e);
         }
       });
     });
-
+    $("#clear-insights").click(function(){
+      $("#insights").html("");
+  });
+    
 
 
 
 
     
-
-    // reprend la conversation sélectionnée
-    $("#prompt-json-conversation").click(function(){
+    $("#prompt-json-conversation-save").click(function(){
+      analyse_courante.history = ConversationArray("text")
+      
       $.ajax({
-        url: '{% url 'chatapp:chatapp_get_conversation' %}',
+        url: chatapp_save_conversation,
         type: 'POST',
         data: JSON.stringify(analyse_courante), 
         contentType: 'application/json', 
         beforeSend: function(xhr, settings){
           xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
           $('#prompt-clear').click()
+        },
+        success: function(response) {
+            console.log(response.conversation);
+            setSommaire(response.conversation)
+        },
+        error: function(e) {
+            console.log(e);
+        }
+      });
+      
+    })
+    // reprend la conversation sélectionnée
+    $("#prompt-json-conversation").click(function(){
+      $.ajax({
+        url: chatapp_get_conversation,
+        type: 'POST',
+        data: JSON.stringify(analyse_courante), 
+        contentType: 'application/json', 
+        beforeSend: function(xhr, settings){
+          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+          //$('#prompt-clear').click()
         },
         success: function(response) {
             console.log(response.conversation);
@@ -497,7 +773,7 @@
       analyse_courante.prompt=nom
       console.log(analyse_courante)
       $.ajax({
-        url: '{% url 'chatapp:chatapp_word' %}',
+        url: chatapp_word,
         type: 'POST',
         data: JSON.stringify(analyse_courante), 
         contentType: 'application/json', 
@@ -541,7 +817,7 @@
     }
     
     $.ajax({
-      url: '{% url 'chatapp:chatapp_file_to_rag' %}',
+      url: chatapp_file_to_rag,
       type: 'POST',
       data: JSON.stringify({name:selectedLLM}),
       contentType: 'application/json', 
@@ -567,7 +843,7 @@
     var selectedLLM = $('input[name="llm"]:checked').val(); // Récupérer la valeur de l'option sélectionnée
 
     $.ajax({
-      url: '{% url 'chatapp:chatapp_llm' %}',
+      url: chatapp_llm,
       type: 'POST',
       data: JSON.stringify({name:selectedLLM}),
       contentType: 'application/json', 

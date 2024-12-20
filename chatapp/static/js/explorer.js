@@ -73,7 +73,7 @@ $(document).ready(function () {
             }
           });
           listItem.on( "dblclick", function() {
-            $("#fichier-tab").click()
+            $("#fiches-tab").click()
           });
         }
         $("#"+target).append(listItem);
@@ -152,7 +152,7 @@ $(document).ready(function () {
           xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
         },
         success: function (response) {
-          $.toast({heading: "résumé réalisé",text: "le résumé est disponible dans l'onglet Fichier",position: toastPosition,icon: response.state, stack: true,hideAfter: 5000})
+          $.toast({heading: "résumé réalisé",text: "le résumé est disponible dans insights",position: toastPosition,icon: response.state, stack: true,hideAfter: 5000})
           if(listItem !== undefined){listItem.removeClass("list-group-item-warning")}
           if(entry !== undefined){entry.memorized = true}
           
@@ -230,10 +230,10 @@ $(document).ready(function () {
             $("#prompt-json-conversation").show().addClass("btn-outline-success")
           }
           if(response.state == "warning"){
-            $.toast({heading: "Info", text: "Le résumé du document n'existe pas, lancer la procédure dans l'onglet Fichier.", position: toastPosition, icon: response.state, stack: true,hideAfter: 7000 })
+            $.toast({heading: "Info", text: "Le résumé du document n'existe pas, lancer la procédure dans insights.", position: toastPosition, icon: response.state, stack: true,hideAfter: 7000 })
           
           }else{
-            $.toast({heading: "Info", text: "Le résumé du document vectorisé est affiché dans l'ongle l'onglet Fichier.", position: toastPosition, icon: response.state, stack: true,hideAfter: 7000 })
+            $.toast({heading: "Info", text: "Le résumé du document vectorisé est affiché dans insights.", position: toastPosition, icon: response.state, stack: true,hideAfter: 7000 })
           
           }
 

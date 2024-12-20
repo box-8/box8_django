@@ -479,7 +479,7 @@ def chatapp_get_conversation(request):
     
     json_conversation_path = pdf+".json"
     response_data = getjson_conversation(json_conversation_path)
-    print(response_data)
+    # print(response_data)
     return JsonResponse(response_data)
 
 def chatapp_save_conversation(request):

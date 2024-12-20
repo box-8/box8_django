@@ -5,14 +5,21 @@
   <style>
     #fixedElement {
       position: fixed;
-      bottom: 10px;
+      bottom: 0px;
       width: 100%;
-      background-color: #FAFAFA;
+      background-color: #FEFEFE;
       padding: 5px;
       text-align: center;
       box-shadow: 0 -2px 3px rgba(0, 0, 0, 0.2);
       z-index:999;
     }
+    .qa-selected{
+      background-color: #FFFFFF;
+    }
+    .qa-selected-not{
+      background-color: #FAFAFA;
+    }
+
   </style>
   <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
 {% endblock css %}
@@ -88,9 +95,7 @@
           <button class="nav-link active" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-panel" type="button" role="tab" aria-controls="chat-panel" aria-selected="false">Conversation</button>
         </li>
 
-        <li class="nav-item" role="presentation">
-          <button class="nav-link " id="fichier-tab" data-bs-toggle="tab" data-bs-target="#fichier-panel" type="button" role="tab" aria-controls="fichier-panel" aria-selected="true">Fichier</button>
-        </li>
+        
 
         <li class="nav-item" role="presentation">
           <button class="nav-link" id="carte-tab" data-bs-toggle="tab" data-bs-target="#carte-panel" type="button" role="tab" aria-controls="carte-panel" aria-selected="false">Carte</button>
@@ -125,7 +130,7 @@
             <h5>Historique des conversations {% if request.session.llm_debug %}(Debug){% endif %}</h5>
             <div class="row" id="fixedElement">
               <div class="col-8">
-                <div class="input-group mb-3">
+                <div class="input-group ">
                   <input id="prompt" type="text" class="form-control" placeholder="Prompt ..." >
                   <button id="prompt-send" class="btn btn-primary" type="button">Send</button>
                   <button id="prompt-expand-toggle" class="btn btn-light" type="button">⤴️</button>
@@ -144,43 +149,30 @@
 
         <div class="tab-pane fade  " id="fiches-panel" role="tabpanel" aria-labelledby="fiches-tab">
           <div class="section-title pt-3">
-            <h4 id="fiches-panel-title">Dossier</h4>
-            <h5>Actions disponibles</h5>
-
-            <div class="mb-1 btn-group">
-              <a href="javascript:void(0)" id="btn_modal_open_upload" class="btn btn-outline-primary" >Upload ...</a>
-              <a href="javascript:void(0)" id="btn_fusion_pdf" class="btn btn-outline-primary" >Fusionner les pdf</a>
-              <a href="javascript:void(0)" id="chroma_reset" class="btn btn-outline-primary" >Restart Chroma</a>
-            </div>
+            <h5>Dossier</h5>
+            <h6 id="fiches-panel-title">...</h6>
             
-          </div>
-        </div>
-
-        <div class="tab-pane fade" id="fichier-panel" role="tabpanel" aria-labelledby="fichier-tab">
-          <div class="section-title pt-3">
-            <h4 id="fichier-panel-title">Fichier</h4>
-            <h5>Actions disponibles</h5>
+            
+              <a href="javascript:void(0)" id="btn_modal_open_upload" class="btn btn-outline-primary" >Importer un fichier ...</a>
+              <a href="javascript:void(0)" id="btn_fusion_pdf" class="btn btn-outline-primary" >Fusionner les pdf</a>
+              
+            
+            
+            <h5>Fichier</h5>
+            <h6 id="fichier-panel-title">...</h6>
             <div class="row">
               <div class="col-12">
-                <div class="mb-1 btn-group">
-                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-delete" >Supprimer</a>
-                </div>
-              </div> 
-            </div>
-            <div class="row" >
-              <div class="col-12">
-                <h5>Informations du fichier sélectionné</h5>
-                <div class="mb-1 btn-group">
-                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-iframe">Ouvrir</a>
-                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-vectoriser" >Résumer</a>
-                </div>
-                </br>
-                <div id="filedetails">Pas de contenu, sélectionner un fichier</div>
+                
+                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-iframe">Ouvrir dans l'explorateur</a>
+                  <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-delete" >Supprimer du dossier</a>
+                
               </div> 
             </div>
             
           </div>
         </div>
+
+        
 
         
         <div class="tab-pane fade " id="carte-panel" role="tabpanel" aria-labelledby="carte-tab">
@@ -258,7 +250,10 @@
                   </div>
 
                     <button type="submit" class="btn btn-primary mt-3">Valider</button>
+                    
                 </form>
+                <br />
+                <a href="javascript:void(0)" id="chroma_reset" class="btn btn-outline-primary" >Restart Chroma</a>
           </div>
         </div>
         
@@ -333,7 +328,10 @@
 
       </div>
       <div class="modal-body">
-        <h5>Insights</h5>
+        <h5>Résumé</h5>
+        <a href="javascript:void(0)" class="btn btn-outline-primary" id="viewer-vectoriser" >Résumer</a>
+        <div id="filedetails">Pas de contenu, sélectionner un fichier</div>
+        <h5>Points clefs</h5>
         <div id="insights" class="m-3"></div>
       </div>
       <div class="modal-footer">
@@ -356,6 +354,36 @@
   const turndownService = new TurndownService({ headingStyle: 'atx' });;
 
 
+
+  function ConversationArray(getType){
+      var conversationArray = [];
+      var allConversations = $('#conversation .container');
+      // Sélectionner toutes les paires de question et réponse
+      allConversations.each(function() {
+        var container = $(this)
+        if(container.hasClass("qa-selected")){
+          var question = container.find('.alert-info').text().trim()
+          var answer = $(this).find('.alert-warning').html();
+          if (typeof answer === "undefined"){
+            console.warn("ConversationArray : entrée non trouvée ",question)
+          }else{
+            if(getType == "text"){
+              answer = turndownService.turndown(answer);
+            }
+            
+            if (question && answer) { // Ajouter à l'array si à la fois question et réponse existent
+                conversationArray.push([question, answer]);
+            }
+          }
+        }else{
+        }
+        
+          
+      });
+      
+      return conversationArray
+    }
+
   $(document).ready(function () {
 
     var QAS = Array()
@@ -363,7 +391,13 @@
       let lastQA 
       $.each(response, function(index, QA) {
         let qa = NewQA(QA.title)
-        qa.response(marked.parse(QA.description))
+
+        if (typeof QA.description === "object"){
+          console.log("Conversation type error", QA.description)
+        }else{
+          qa.response(marked.parse(QA.description))
+        }
+         
         $("#conversation").prepend(qa)
         qa.mask()
         lastQA  = qa
@@ -483,58 +517,13 @@
           console.log(e);
         }
       });
-      return false
-      /*
-      $.ajax({
-        url: chatapp_enhance,
-        type: 'POST',
-        data: JSON.stringify(analyse_courante), 
-        contentType: 'application/json', 
-        beforeSend: function(xhr, settings){
-          xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-          qa.qToolbarInput.val("")
-          qa.aHtml.parent().append($("<p class='alert alert-secondary' >"+question+"</p>"))
-        },
-        success: function(response) {
-            html = marked.parse(response.content)
-            qa.aHtml.html(html)
-            console.log(response);
-        },
-        error: function(e) {
-            alert("Une erreur s'est produite.")
-            console.log(e);
-        }
-      });
-      */
+      
     }
 
-    function ConversationArray(getType){
-      var conversationArray = [];
-      var allConversations = $('#conversation .container');
-      // Sélectionner toutes les paires de question et réponse
-      allConversations.each(function() {
-          var question = $(this).find('.alert-info').text().trim();  // Récupérer le texte de la question
-          var answer = $(this).find('.alert-warning').html();  // Récupérer le texte de la réponse
-          if (typeof answer === "undefined"){
-            console.warn("ConversationArray : entrée non trouvée ",question)
-          }else{
-            if(getType == "text"){
-              answer = turndownService.turndown(answer);
-            }
-            
-            if (question && answer) { // Ajouter à l'array si à la fois question et réponse existent
-                conversationArray.push([question, answer]);
-            }
-          }
-          
-      });
-      console.log(conversationArray)
-      return conversationArray
-    }
+    
 
     $('#prompt-expand-toggle').click(function(event) {
       let self = $(this)
-      
       if (self.text()=="⤴️") {
         self.text("⬇️");
         QAS.forEach(element => {
@@ -550,7 +539,7 @@
    
     function NewQA(prompt) {
       let Col = $("<div class='drag-handle col-1 text-secondary' style='cursor: move;'>⬇️</div>");
-      let qa = $("<div class='container mb-2 p-2'></div>");
+      let qa = $("<div class='container mb-2 p-2 qa-selected'></div>");
       
       // Icône pour le déplacement
       let dragHandle = $("<div class=' col-1 text-secondary' >⇅</div>");
@@ -579,13 +568,7 @@
       qa.aRow.append(qa.aHtml);
     
       Col.click(function (event) {
-        qa.aRow.toggle();
-        if (qa.aRow.is(':visible')) {
-          Col.text("⬇️");
-        } else {
-          Col.text("⤴️");
-        }
-        qa.qToolbar.hide();
+        qa.togglemask()
       });
     
       qa.response = function (value) {
@@ -596,10 +579,12 @@
       qa.mask = function () {
         qa.aRow.hide();
         Col.text("⤴️");
+        qa.addClass("qa-selected-not").removeClass("qa-selected")
       };
       qa.unmask = function () {
         qa.aRow.show();
         Col.text("⬇️");
+        qa.addClass("qa-selected").removeClass("qa-selected-not")
       };
       qa.togglemask = function () {
         if (qa.aRow.is(':visible')) {
@@ -626,9 +611,11 @@
         qa.togglemask()
       });
     
-      qa.aHtml.click(function (event) {
+      /*
+        qa.aHtml.click(function (event) {
         qa.aHtml.toggleClass("alert-warning").toggleClass("alert-danger");
       });
+      */
     
       qa.qToolbarDelete.click(function (event) {
         conversationDeleteEntry(qa);
