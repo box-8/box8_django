@@ -70,6 +70,15 @@ function init() {
                         width: 150
                     },
                     new go.Binding("text", "goal")
+                ),
+                $(go.TextBlock, {
+                        margin: 8,
+                        font: "10px sans-serif",
+                        stroke: "#666",
+                        visible: false
+                    },
+                    new go.Binding("text", "file", function(file) { return file ? " " + file.split('/').pop() : ""; }),
+                    new go.Binding("visible", "file", function(file) { return !!file; })
                 )
             )
         );
@@ -82,6 +91,21 @@ function init() {
                 corner: 5,
                 selectionAdorned: true,
                 selectionChanged: onLinkSelectionChanged,
+                // Add tooltip to show description and expected output
+                toolTip: $(go.Adornment, "Auto",
+                    $(go.Shape, { fill: "#FFFFCC" }),
+                    $(go.Panel, "Vertical",
+                        { margin: 3 },
+                        $(go.TextBlock, { margin: 4, font: "bold 10px sans-serif" },
+                            new go.Binding("text", "", function(data) {
+                                return data.description ? "Description: " + data.description : "";
+                            })),
+                        $(go.TextBlock, { margin: 4, font: "10px sans-serif" },
+                            new go.Binding("text", "", function(data) {
+                                return data.expected_output ? "Expected Output: " + data.expected_output : "";
+                            }))
+                    )
+                ),
                 contextMenu: $(go.Adornment, "Vertical",
                     ...RELATIONSHIP_TYPES.map(type =>
                         $(go.TextBlock, type.text, {
@@ -96,12 +120,13 @@ function init() {
             $(go.Panel, "Auto",
                 $(go.Shape, "Rectangle", { fill: "white", stroke: null }),
                 $(go.TextBlock, {
-                        margin: 5,
-                        font: "11px sans-serif",
-                        background: "white"
-                    },
-                    new go.Binding("text", "relationship")
-                )
+                    margin: 5,
+                    font: "11px sans-serif",
+                    background: "white"
+                },
+                new go.Binding("text", "relationship", function(relationship) {
+                    return RELATIONSHIP_TYPES.find(t => t.value === relationship)?.text || relationship;
+                }))
             )
         );
 
@@ -135,6 +160,8 @@ function onNodeSelectionChanged(node) {
         selectedNode = node;
         populateAgentForm(node.data);
         updateFormToEditMode();
+        const modal = new bootstrap.Modal(document.getElementById('agentModal'));
+        modal.show();
     } else {
         if (selectedNode === node) {
             selectedNode = null;
@@ -149,6 +176,8 @@ function onLinkSelectionChanged(link) {
         selectedLink = link;
         populateRelationshipForm(link.data);
         updateRelationshipFormToEditMode();
+        const modal = new bootstrap.Modal(document.getElementById('taskModal'));
+        modal.show();
     } else {
         if (selectedLink === link) {
             selectedLink = null;
@@ -163,6 +192,7 @@ function populateAgentForm(data) {
     document.getElementById("agentRole").value = data.role || "";
     document.getElementById("agentGoal").value = data.goal || "";
     document.getElementById("agentBackstory").value = data.backstory || "";
+    document.getElementById("agentFile").value = data.file || "";
 }
 
 // Function to update form to edit mode
@@ -170,33 +200,28 @@ function updateFormToEditMode() {
     const submitBtn = document.getElementById("agentSubmitBtn");
     const cancelBtn = document.getElementById("agentCancelBtn");
     const deleteBtn = document.getElementById("agentDeleteBtn");
+    
     submitBtn.textContent = "Update Agent";
-    submitBtn.classList.remove("btn-primary");
-    submitBtn.classList.add("btn-success");
-    cancelBtn.style.display = "inline-block";
-    deleteBtn.style.display = "inline-block";
+    cancelBtn.style.display = "block";
+    deleteBtn.style.display = "block";
 }
 
 // Function to reset the agent form
 function resetAgentForm() {
-    const form = document.getElementById("agentForm");
-    const submitBtn = document.getElementById("agentSubmitBtn");
-    const cancelBtn = document.getElementById("agentCancelBtn");
-    const deleteBtn = document.getElementById("agentDeleteBtn");
-    form.reset();
-    submitBtn.textContent = "Add Agent";
-    submitBtn.classList.remove("btn-success");
-    submitBtn.classList.add("btn-primary");
-    cancelBtn.style.display = "none";
-    deleteBtn.style.display = "none";
+    document.getElementById("agentForm").reset();
     selectedNode = null;
+    document.getElementById("agentSubmitBtn").textContent = "Add Agent";
+    document.getElementById("agentCancelBtn").style.display = "none";
+    document.getElementById("agentDeleteBtn").style.display = "none";
 }
 
 // Function to populate the relationship form with selected link data
 function populateRelationshipForm(data) {
     document.getElementById("fromAgent").value = data.from || "";
     document.getElementById("toAgent").value = data.to || "";
-    document.getElementById("relationshipType").value = data.relationship || "collaborates";
+    document.getElementById("relationshipType").value = data.relationship || "";
+    document.getElementById("relationshipDescription").value = data.description || "";
+    document.getElementById("relationshipExpectedOutput").value = data.expected_output || "";
 }
 
 // Function to update relationship form to edit mode
@@ -204,11 +229,10 @@ function updateRelationshipFormToEditMode() {
     const submitBtn = document.getElementById("relationshipSubmitBtn");
     const cancelBtn = document.getElementById("relationshipCancelBtn");
     const deleteBtn = document.getElementById("relationshipDeleteBtn");
-    submitBtn.textContent = "Update Relationship";
-    submitBtn.classList.remove("btn-primary");
-    submitBtn.classList.add("btn-success");
-    cancelBtn.style.display = "inline-block";
-    deleteBtn.style.display = "inline-block";
+    
+    submitBtn.textContent = "Update Task";
+    cancelBtn.style.display = "block";
+    deleteBtn.style.display = "block";
 }
 
 // Function to reset the relationship form
@@ -376,12 +400,14 @@ document.getElementById("agentForm").addEventListener("submit", function(e) {
     const role = document.getElementById("agentRole").value;
     const goal = document.getElementById("agentGoal").value;
     const backstory = document.getElementById("agentBackstory").value;
+    const file = document.getElementById("agentFile").value;
 
     const agentData = {
         name: name,
         role: role,
         goal: goal,
-        backstory: backstory
+        backstory: backstory,
+        file: file
     };
 
     if (selectedNode) {
@@ -435,6 +461,8 @@ document.getElementById("relationshipForm").addEventListener("submit", function(
     const fromKey = document.getElementById("fromAgent").value;
     const toKey = document.getElementById("toAgent").value;
     const relationshipType = document.getElementById("relationshipType").value;
+    const description = document.getElementById("relationshipDescription").value;
+    const expected_output = document.getElementById("relationshipExpectedOutput").value;
 
     // Don't create self-relationships
     if (fromKey === toKey) {
@@ -445,7 +473,9 @@ document.getElementById("relationshipForm").addEventListener("submit", function(
     const relationshipData = {
         from: fromKey,
         to: toKey,
-        relationship: relationshipType
+        relationship: relationshipType,
+        description: description,
+        expected_output: expected_output
     };
 
     if (selectedLink) {

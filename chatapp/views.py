@@ -18,7 +18,7 @@ import markdown
 Naldia.async_mode = False
 
 chat = Chatter()
-# l'objet commun ne sert qu'à vérifier la présence d'une vectorisation antérieure, voir new_async_memorizer
+# l'objet commun ne sert qu’à vérifier la présence d’une vectorisation antérieure, voir new_async_memorizer
 memorizer = Memorizer()
 
 # deprecated : async_memorize = sync_to_async(memorizer.memorize)
@@ -779,3 +779,23 @@ def afficher_ressources(request, analyse, nom_fichier):
         # Gérez le cas où le fichier n'existe pas, par exemple, en renvoyant une erreur 404.
         from django.http import Http404
         raise Http404("Le fichier PDF n'existe pas.")
+
+
+def chatapp_get_sharepoint_files(request):
+    destination_dir = user_destination_dir(request)
+    all_files = []
+    
+    # Get all files from all analyses folders
+    if os.path.exists(destination_dir):
+        analyses = [d for d in os.listdir(destination_dir) if os.path.isdir(os.path.join(destination_dir, d)) and not d.startswith('_')]
+        for analyse in analyses:
+            analyse_dir = os.path.join(destination_dir, analyse)
+            files = [f for f in os.listdir(analyse_dir) if os.path.isfile(os.path.join(analyse_dir, f)) and not (f.endswith('.json') or f.endswith('.txt'))]
+            for file in files:
+                all_files.append({
+                    'name': file,
+                    'path': os.path.join(analyse, file),
+                    'analyse': analyse
+                })
+    
+    return JsonResponse({'files': all_files})
