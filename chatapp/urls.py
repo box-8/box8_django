@@ -65,7 +65,7 @@ urlpatterns = [
     
     path('chatapp/chroma_reset/', chroma_reset, name="chroma_reset"), # chroma_reset la vector db 
     
-    path('chatapp/webscrapping', chatapp_webscrapping_demo, name="chatapp_webscrapping_demo"), # demo application webscrapping
+    path('chatapp/rao', chatapp_webscrapping_demo, name="chatapp_webscrapping_demo"), # demo application webscrapping
 
 
     path('models/', models_dashboard, name="models_dashboard"), # écran acceuil models
