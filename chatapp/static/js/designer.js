@@ -36,50 +36,157 @@ function init() {
                 selectionAdorned: true,
                 resizable: true,
                 layoutConditions: go.Part.LayoutStandard & ~go.Part.LayoutNodeSized,
-                // Enable linking from/to this node
                 fromLinkable: true,
                 toLinkable: true,
-                // Handle selection changed
                 selectionChanged: onNodeSelectionChanged
+            },
+            // Add tooltip to show all agent properties
+            {
+                toolTip: $(go.Adornment, "Auto",
+                    $(go.Shape, { fill: "#FFFFCC", stroke: "#666", strokeWidth: 0.5 }),
+                    $(go.Panel, "Vertical",
+                        { margin: 6 },
+                        // Title - Agent Name
+                        $(go.TextBlock,
+                            {
+                                margin: new go.Margin(0, 0, 4, 0),
+                                font: "bold 12px sans-serif",
+                                stroke: "#333"
+                            },
+                            new go.Binding("text", "name")
+                        ),
+                        // Role
+                        $(go.Panel, "Horizontal",
+                            { alignment: go.Spot.Left },
+                            $(go.TextBlock, "Role: ",
+                                {
+                                    font: "bold 10px sans-serif",
+                                    stroke: "#666"
+                                }
+                            ),
+                            $(go.TextBlock,
+                                { font: "10px sans-serif", stroke: "#333" },
+                                new go.Binding("text", "role")
+                            )
+                        ),
+                        // Goal
+                        $(go.Panel, "Vertical",
+                            { alignment: go.Spot.Left },
+                            $(go.TextBlock, "Goal:",
+                                {
+                                    font: "bold 10px sans-serif",
+                                    stroke: "#666",
+                                    margin: new go.Margin(4, 0, 2, 0)
+                                }
+                            ),
+                            $(go.TextBlock,
+                                {
+                                    font: "10px sans-serif",
+                                    stroke: "#333",
+                                    width: 200,
+                                    wrap: go.TextBlock.WrapFit,
+                                    margin: new go.Margin(0, 0, 0, 8)
+                                },
+                                new go.Binding("text", "goal", function(goal) {
+                                    return goal || "No goal specified";
+                                })
+                            )
+                        ),
+                        // Backstory
+                        $(go.Panel, "Vertical",
+                            { alignment: go.Spot.Left },
+                            $(go.TextBlock, "Backstory:",
+                                {
+                                    font: "bold 10px sans-serif",
+                                    stroke: "#666",
+                                    margin: new go.Margin(4, 0, 2, 0)
+                                }
+                            ),
+                            $(go.TextBlock,
+                                {
+                                    font: "10px sans-serif",
+                                    stroke: "#333",
+                                    width: 200,
+                                    wrap: go.TextBlock.WrapFit,
+                                    margin: new go.Margin(0, 0, 0, 8)
+                                },
+                                new go.Binding("text", "backstory", function(backstory) {
+                                    return backstory || "No backstory provided";
+                                })
+                            )
+                        ),
+                        // Associated File
+                        $(go.Panel, "Horizontal",
+                            { 
+                                alignment: go.Spot.Left,
+                                margin: new go.Margin(4, 0, 0, 0)
+                            },
+                            $(go.TextBlock, "File: ",
+                                {
+                                    font: "bold 10px sans-serif",
+                                    stroke: "#666"
+                                }
+                            ),
+                            $(go.TextBlock,
+                                { 
+                                    font: "10px sans-serif",
+                                    stroke: "#333"
+                                },
+                                new go.Binding("text", "file", function(file) {
+                                    return file ? file.split('/').pop() : "No file associated";
+                                })
+                            )
+                        )
+                    )
+                )
             },
             $(go.Shape, "RoundedRectangle", {
                 fill: "white",
                 strokeWidth: 2,
                 stroke: "#007bff",
-                portId: "",  // this Shape is the Node's port
+                portId: "",
                 cursor: "pointer"
             }),
             $(go.Panel, "Vertical",
                 { margin: 8 },
+                // Agent Name as title
                 $(go.TextBlock, {
-                        margin: 8,
-                        font: "bold 14px sans-serif"
-                    },
-                    new go.Binding("text", "name")
-                ),
+                    margin: 8,
+                    font: "bold 14px sans-serif"
+                },
+                new go.Binding("text", "name")),
+                // Role
                 $(go.TextBlock, {
-                        margin: 8,
-                        font: "12px sans-serif"
-                    },
-                    new go.Binding("text", "role")
-                ),
+                    margin: 8,
+                    font: "12px sans-serif"
+                },
+                new go.Binding("text", "role")),
+                // Goal
                 $(go.TextBlock, {
-                        margin: 8,
-                        font: "italic 11px sans-serif",
-                        wrap: go.TextBlock.WrapFit,
-                        width: 150
-                    },
-                    new go.Binding("text", "goal")
-                ),
+                    margin: 8,
+                    font: "italic 11px sans-serif",
+                    wrap: go.TextBlock.WrapFit,
+                    width: 150
+                },
+                new go.Binding("text", "goal")),
+                // Backstory
                 $(go.TextBlock, {
-                        margin: 8,
-                        font: "10px sans-serif",
-                        stroke: "#666",
-                        visible: false
-                    },
-                    new go.Binding("text", "file", function(file) { return file ? " " + file.split('/').pop() : ""; }),
-                    new go.Binding("visible", "file", function(file) { return !!file; })
-                )
+                    margin: 8,
+                    font: "11px sans-serif",
+                    wrap: go.TextBlock.WrapFit,
+                    width: 150,
+                    stroke: "#666"
+                },
+                new go.Binding("text", "backstory")),
+                // File
+                $(go.TextBlock, {
+                    margin: 8,
+                    font: "10px sans-serif",
+                    stroke: "#666"
+                },
+                new go.Binding("text", "file", function(file) {
+                    return file ? "📄 " + file.split('/').pop() : "";
+                }))
             )
         );
 
@@ -91,19 +198,96 @@ function init() {
                 corner: 5,
                 selectionAdorned: true,
                 selectionChanged: onLinkSelectionChanged,
-                // Add tooltip to show description and expected output
+                // Add tooltip to show all relationship properties
                 toolTip: $(go.Adornment, "Auto",
-                    $(go.Shape, { fill: "#FFFFCC" }),
+                    $(go.Shape, { fill: "#FFFFCC", stroke: "#666", strokeWidth: 0.5 }),
                     $(go.Panel, "Vertical",
-                        { margin: 3 },
-                        $(go.TextBlock, { margin: 4, font: "bold 10px sans-serif" },
-                            new go.Binding("text", "", function(data) {
-                                return data.description ? "Description: " + data.description : "";
-                            })),
-                        $(go.TextBlock, { margin: 4, font: "10px sans-serif" },
-                            new go.Binding("text", "", function(data) {
-                                return data.expected_output ? "Expected Output: " + data.expected_output : "";
-                            }))
+                        { margin: 6 },
+                        // Title - Relationship Type
+                        $(go.TextBlock, 
+                            { 
+                                margin: new go.Margin(0, 0, 4, 0),
+                                font: "bold 12px sans-serif",
+                                stroke: "#333"
+                            },
+                            new go.Binding("text", "relationship", function(rel) {
+                                return RELATIONSHIP_TYPES.find(t => t.value === rel)?.text || rel;
+                            })
+                        ),
+                        // From Agent
+                        $(go.Panel, "Horizontal",
+                            { alignment: go.Spot.Left },
+                            $(go.TextBlock, "From: ", 
+                                { 
+                                    font: "bold 10px sans-serif",
+                                    stroke: "#666"
+                                }
+                            ),
+                            $(go.TextBlock,
+                                { font: "10px sans-serif", stroke: "#333" },
+                                new go.Binding("text", "from")
+                            )
+                        ),
+                        // To Agent
+                        $(go.Panel, "Horizontal",
+                            { alignment: go.Spot.Left },
+                            $(go.TextBlock, "To: ", 
+                                { 
+                                    font: "bold 10px sans-serif",
+                                    stroke: "#666"
+                                }
+                            ),
+                            $(go.TextBlock,
+                                { font: "10px sans-serif", stroke: "#333" },
+                                new go.Binding("text", "to")
+                            )
+                        ),
+                        // Description
+                        $(go.Panel, "Vertical",
+                            { alignment: go.Spot.Left, visible: true },
+                            $(go.TextBlock, "Description:", 
+                                { 
+                                    font: "bold 10px sans-serif",
+                                    stroke: "#666",
+                                    margin: new go.Margin(4, 0, 2, 0)
+                                }
+                            ),
+                            $(go.TextBlock,
+                                { 
+                                    font: "10px sans-serif",
+                                    stroke: "#333",
+                                    width: 200,
+                                    wrap: go.TextBlock.WrapFit,
+                                    margin: new go.Margin(0, 0, 0, 8)
+                                },
+                                new go.Binding("text", "description", function(desc) {
+                                    return desc || "No description provided";
+                                })
+                            )
+                        ),
+                        // Expected Output
+                        $(go.Panel, "Vertical",
+                            { alignment: go.Spot.Left, visible: true },
+                            $(go.TextBlock, "Expected Output:", 
+                                { 
+                                    font: "bold 10px sans-serif",
+                                    stroke: "#666",
+                                    margin: new go.Margin(4, 0, 2, 0)
+                                }
+                            ),
+                            $(go.TextBlock,
+                                { 
+                                    font: "10px sans-serif",
+                                    stroke: "#333",
+                                    width: 200,
+                                    wrap: go.TextBlock.WrapFit,
+                                    margin: new go.Margin(0, 0, 0, 8)
+                                },
+                                new go.Binding("text", "expected_output", function(output) {
+                                    return output || "No expected output specified";
+                                })
+                            )
+                        )
                     )
                 ),
                 contextMenu: $(go.Adornment, "Vertical",
@@ -482,20 +666,33 @@ document.getElementById("relationshipForm").addEventListener("submit", function(
         // Update existing relationship
         myDiagram.startTransaction("update relationship");
         const data = selectedLink.data;
+        
+        // Store old from/to values to find and update connected nodes
+        const oldFrom = data.from;
+        const oldTo = data.to;
+        
+        // Update all properties
         Object.assign(data, relationshipData);
+        
+        // If from/to have changed, we need to update the link's connections
+        if (oldFrom !== fromKey || oldTo !== toKey) {
+            const fromNode = myDiagram.findNodeForKey(fromKey);
+            const toNode = myDiagram.findNodeForKey(toKey);
+            
+            if (fromNode && toNode) {
+                selectedLink.fromNode = fromNode;
+                selectedLink.toNode = toNode;
+            }
+        }
+        
         myDiagram.model.updateTargetBindings(data);
         myDiagram.commitTransaction("update relationship");
-        resetRelationshipForm();
-        myDiagram.layoutDiagram(true);
-        ensureAllAgentsVisible();
     } else {
         // Create new relationship
         myDiagram.model.addLinkData(relationshipData);
-        myDiagram.layoutDiagram(true);
-        ensureAllAgentsVisible();
     }
-
-    // Reset form
+    
+    myDiagram.layoutDiagram(true);
     resetRelationshipForm();
 });
 
