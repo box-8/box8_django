@@ -8,7 +8,13 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
 from lorem_text import lorem
-from box8.ChatAgent import chat, chat_enhance, chat_summarize, extract_insights, delete_entry,chat_save_conversation
+from box8.ChatAgent import (crewai_lauch_process, 
+                            chat, 
+                            chat_enhance,
+                            chat_summarize, 
+                            extract_insights, 
+                            delete_entry,
+                            chat_save_conversation)
 from box8.utils_pdf import PdfUtils
 
 import markdown
@@ -716,7 +722,6 @@ def format_text(text):
 
 
 
-
 # mémorize document (mode mulit-doc non implémenté)
 def chatapp_summarize(request):
     analyse, entries, prompt, history, llm, pdf, data = gen_request(request=request)
@@ -799,3 +804,19 @@ def chatapp_get_sharepoint_files(request):
                 })
     
     return JsonResponse({'files': all_files})
+
+
+def create_crewai_process(request):
+    if request.method == 'POST':
+        llm = request.session.get('selected_llm', 'openai')
+
+        directory = user_destination_dir(request)
+
+        response=crewai_lauch_process(request, folder=directory, llm=llm)
+        print("6")
+        return JsonResponse(response, status=200)
+    
+    return JsonResponse({
+        'status': 'error',
+        'message': 'Method not allowed'
+    }, status=405)

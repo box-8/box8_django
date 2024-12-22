@@ -943,7 +943,89 @@ Remplir la liste des informations géographiques dans un tableau respectant stri
     
     
     
+def crewai_lauch_process(request, folder, llm="openai"):
+    try:
+        data = json.loads(request.body)
 
+        nodes = data.get('nodes', [])
+        links = data.get('links', [])
+
+        # Create CrewAI agents
+        agents = {}  # Changed from list to dictionary
+        for node in nodes:
+            file = node.get('file', '')
+            src = os.path.join(folder, file) if file else ""
+
+            agent = Agent(
+                role=node.get('role', ''),
+                goal=node.get('goal', ''),
+                backstory=node.get('backstory', ''),
+                allow_delegation=False,
+                verbose=True,
+                llm = ChooseLLM(llm)
+            )
+            
+            if os.path.exists(src) and file!="":
+                agent.tools = [choose_tool(src=src)]
+                print(src)
+                
+            agents[node.get('key')] = agent  # Store agent with its node ID as key
+        
+
+        # Create CrewAI tasks from links
+        tasks = []
+        for link in links:
+            from_agent = agents.get(link['from'])
+            to_agent = agents.get(link['to'])
+            if from_agent and to_agent:
+                task = Task(
+                    description=link['description'],
+                    agent=from_agent,
+                    expected_output=link.get('expected_output', ''),
+                )
+                tasks.append(task)
+
+        # Create and process the crew
+        crew = Crew(
+            agents=list(agents.values()),  # Convert agents dict values to list
+            tasks=tasks,
+            verbose=True
+        )
+        
+        
+
+        # Start the process (you might want to do this asynchronously)
+        kickoff = crew.kickoff()
+        result = ""
+        for task in tasks:
+            task_output = task.output
+            """         
+            print(task_output)
+            print(f"Task Description: {task_output.description}")
+            print(f"Task Summary: {task_output.summary}")
+            print(f"Raw Output: {task_output.raw}")
+            """
+            result += task_output.raw
+            result += "\n\n"
+        
+        result += kickoff.raw
+        # result = "crew.kickoff()"
+
+        return ({
+            'status': 'success',
+            'message': result,
+            'agents_count': len(agents),
+            'tasks_count': len(tasks)
+        })
+    
+    
+    except Exception as e:
+        print("error 7" + str(e))
+    
+        return {
+            'status': 'error',
+            'message': "ERROR " + str(e)
+        }
 
 
 

@@ -32,7 +32,8 @@ from .views import (chatapp_dashboard,
                     models_dpgf_demo_train,
                     models_dpgf_demo_ask,
                     models_vision_demo,
-                    chatapp_get_sharepoint_files)
+                    chatapp_get_sharepoint_files,
+                    create_crewai_process)
 
 app_name="chatapp"
 urlpatterns = [
@@ -45,6 +46,7 @@ urlpatterns = [
     path('chatapp/set_fiche/', chatapp_set_fiches, name="chatapp_set_fiches"), # définit le dossier d'analyse et la liste des documents avec lesquels on va pouvoir chatter
     path('chatapp/memorize/', chatapp_summarize, name="chatapp_summarize"), # mémorise un document pour po
     path('chatapp/get_sharepoint_files/', chatapp_get_sharepoint_files, name="chatapp_get_sharepoint_files"), # get all files from user's SharePoint folder
+    path('chatapp/create_crewai_process/', create_crewai_process, name='create_crewai_process'),
     path('chatapp/rag_file/', chatapp_file_to_rag, name="chatapp_file_to_rag"), # définit le dossier d'analyse et la liste des documents avec lesquels on va pouvoir chatter
      
     path('chatapp/talk/', chatapp_talk, name="chatapp_talk"), # envoi une question sur le document mémorisé en cours (multi document non implémenté)

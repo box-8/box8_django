@@ -306,10 +306,14 @@ function init() {
                 $(go.TextBlock, {
                     margin: 5,
                     font: "11px sans-serif",
-                    background: "white"
+                    background: "white",
+                    maxLines: 2,
+                    width: 150,
+                    wrap: go.TextBlock.WrapFit,
+                    stroke: "#666"
                 },
-                new go.Binding("text", "relationship", function(relationship) {
-                    return RELATIONSHIP_TYPES.find(t => t.value === relationship)?.text || relationship;
+                new go.Binding("text", "", function(data) {
+                    return data.description || "No description";
                 }))
             )
         );
@@ -372,7 +376,6 @@ function onLinkSelectionChanged(link) {
 
 // Function to populate the agent form with selected node data
 function populateAgentForm(data) {
-    document.getElementById("agentName").value = data.name || "";
     document.getElementById("agentRole").value = data.role || "";
     document.getElementById("agentGoal").value = data.goal || "";
     document.getElementById("agentBackstory").value = data.backstory || "";
@@ -494,13 +497,14 @@ function updateAgentDropdowns() {
     const toSelect = document.getElementById("toAgent");
     
     // Clear existing options
-    fromSelect.innerHTML = "";
-    toSelect.innerHTML = "";
+    fromSelect.innerHTML = '<option value="">Select agent...</option>';
+    toSelect.innerHTML = '<option value="">Select agent...</option>';
     
     // Add agents to dropdowns
-    agents.forEach((agent, key) => {
-        const fromOption = new Option(agent.name, key);
-        const toOption = new Option(agent.name, key);
+    const nodes = myDiagram.model.nodeDataArray;
+    nodes.forEach(node => {
+        const fromOption = new Option(node.role, node.key);
+        const toOption = new Option(node.role, node.key);
         fromSelect.add(fromOption);
         toSelect.add(toOption);
     });
@@ -580,14 +584,12 @@ function loadDiagram(file) {
 document.getElementById("agentForm").addEventListener("submit", function(e) {
     e.preventDefault();
     
-    const name = document.getElementById("agentName").value;
     const role = document.getElementById("agentRole").value;
     const goal = document.getElementById("agentGoal").value;
     const backstory = document.getElementById("agentBackstory").value;
     const file = document.getElementById("agentFile").value;
 
     const agentData = {
-        name: name,
         role: role,
         goal: goal,
         backstory: backstory,
@@ -602,9 +604,10 @@ document.getElementById("agentForm").addEventListener("submit", function(e) {
         myDiagram.model.updateTargetBindings(data);
         agents.set(data.key, data);
         myDiagram.commitTransaction("update agent");
-        resetAgentForm();
         myDiagram.layoutDiagram(true);
         ensureAllAgentsVisible();
+        // Keep the form in edit mode
+        updateFormToEditMode();
     } else {
         // Create new agent
         agentData.key = Date.now().toString();
@@ -612,6 +615,8 @@ document.getElementById("agentForm").addEventListener("submit", function(e) {
         myDiagram.model.addNodeData(agentData);
         myDiagram.layoutDiagram(true);
         ensureAllAgentsVisible();
+        // Reset form for new entries
+        resetAgentForm();
     }
     
     // Update dropdowns
@@ -648,52 +653,37 @@ document.getElementById("relationshipForm").addEventListener("submit", function(
     const description = document.getElementById("relationshipDescription").value;
     const expected_output = document.getElementById("relationshipExpectedOutput").value;
 
-    // Don't create self-relationships
-    if (fromKey === toKey) {
-        alert("An agent cannot have a relationship with itself");
-        return;
-    }
-
-    const relationshipData = {
-        from: fromKey,
-        to: toKey,
-        relationship: relationshipType,
-        description: description,
-        expected_output: expected_output
-    };
-
     if (selectedLink) {
         // Update existing relationship
         myDiagram.startTransaction("update relationship");
         const data = selectedLink.data;
-        
-        // Store old from/to values to find and update connected nodes
-        const oldFrom = data.from;
-        const oldTo = data.to;
-        
-        // Update all properties
-        Object.assign(data, relationshipData);
-        
-        // If from/to have changed, we need to update the link's connections
-        if (oldFrom !== fromKey || oldTo !== toKey) {
-            const fromNode = myDiagram.findNodeForKey(fromKey);
-            const toNode = myDiagram.findNodeForKey(toKey);
-            
-            if (fromNode && toNode) {
-                selectedLink.fromNode = fromNode;
-                selectedLink.toNode = toNode;
-            }
-        }
-        
+        Object.assign(data, {
+            from: fromKey,
+            to: toKey,
+            relationship: relationshipType,
+            description: description,
+            expected_output: expected_output
+        });
         myDiagram.model.updateTargetBindings(data);
         myDiagram.commitTransaction("update relationship");
+        // Keep the form in edit mode
+        updateRelationshipFormToEditMode();
     } else {
         // Create new relationship
-        myDiagram.model.addLinkData(relationshipData);
+        const linkData = {
+            from: fromKey,
+            to: toKey,
+            relationship: relationshipType,
+            description: description,
+            expected_output: expected_output
+        };
+        myDiagram.model.addLinkData(linkData);
+        // Reset form for new entries
+        resetRelationshipForm();
     }
     
     myDiagram.layoutDiagram(true);
-    resetRelationshipForm();
+    ensureAllAgentsVisible();
 });
 
 // Handle relationship cancel button click
