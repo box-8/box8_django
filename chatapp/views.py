@@ -812,8 +812,8 @@ def create_crewai_process(request):
 
         directory = user_destination_dir(request)
 
-        response=crewai_lauch_process(request, folder=directory, llm=llm)
-        print("6")
+        response=crewai_lauch_process(request, folder=directory, llm=llm) 
+        
         return JsonResponse(response, status=200)
     
     return JsonResponse({

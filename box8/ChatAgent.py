@@ -1034,9 +1034,7 @@ def crewai_lauch_process(request, folder, llm="openai"):
             result += f"\n\n## Task Agent : {task_output.agent}"
             result += f"\n\n{task_output.raw}"
             
-        
-        # result += kickoff.raw
-        # result = "crew.kickoff()"
+
 
         return ({
             'status': 'success',
