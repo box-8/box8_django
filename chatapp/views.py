@@ -808,18 +808,40 @@ def chatapp_get_sharepoint_files(request):
 
 def create_crewai_process(request):
     if request.method == 'POST':
+        data = json.loads(request.body)
         llm = request.session.get('selected_llm', 'openai')
+        diagram_name = data.get('diagramNameInput', 'default_diagram')
 
         directory = user_destination_dir(request)
 
         response=crewai_lauch_process(request, folder=directory, llm=llm) 
         
+        file_path = os.path.join(directory, f"{diagram_name}.md")
+
+        message = response.get('message', '')
+
+        with open(file_path, 'w', encoding='utf-8') as markdown_file:
+            markdown_file.write(message)
+
         return JsonResponse(response, status=200)
     
     return JsonResponse({
         'status': 'error',
         'message': 'Method not allowed'
     }, status=405)
+
+
+def get_markdown_output(request):
+    diagram_name = request.GET.get('diagramName', 'default_diagram')
+    directory = user_destination_dir(request)
+    file_path = os.path.join(directory, f"{diagram_name}.md")
+
+    if os.path.exists(file_path):
+        with open(file_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+        return JsonResponse({'content': content}, status=200)
+    else:
+        return JsonResponse({'error': 'File not found'}, status=404)
 
 
 from django.views.decorators.http import require_GET, require_POST

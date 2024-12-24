@@ -78,6 +78,7 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-success" id="getCurrentOutput">View Last Output</button>
                     <button class="btn btn-outline-dark" id="saveButton">
                         <i class="bi bi-save"></i> Save to disk
                     </button>
@@ -255,6 +256,10 @@
                 links: myDiagram.model.linkDataArray
             };
 
+            // Add diagramNameInput to the diagram data
+            const diagramNameInput = document.getElementById('diagramNameInput').value;
+            diagramData.diagramNameInput = diagramNameInput;
+
             // Send to backend
             fetch('/chatapp/create_crewai_process/', {
                 method: 'POST',
@@ -295,6 +300,26 @@
                 const modal = new bootstrap.Modal(document.getElementById('crewaiModal'));
                 modal.show();
             });
+        });
+
+        // Add event listener for getCurrentOutput button
+        document.getElementById('getCurrentOutput').addEventListener('click', function() {
+            const diagramNameInput = document.getElementById('diagramNameInput').value;
+
+            fetch(`/chatapp/designer/get_markdown_output/?diagramName=${encodeURIComponent(diagramNameInput)}`)
+                .then(response => response.text())
+                .then(markdownContent => {
+                    const resultDiv = document.getElementById('crewaiResult');
+                    contentMD = JSON.parse(markdownContent)
+                    console.log(contentMD.content);
+                    
+                    resultDiv.innerHTML = `<pre>${marked.parse(contentMD.content)}</pre>`;
+                    const modal = new bootstrap.Modal(document.getElementById('crewaiModal'));
+                    modal.show();
+                })
+                .catch(error => {
+                    console.error('Error fetching markdown:', error);
+                });
         });
     });
 

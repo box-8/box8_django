@@ -37,7 +37,8 @@ from .views import (chatapp_dashboard,
                     list_json_files,
                     get_json_file_content,
                     save_diagram,
-                    delete_diagram)
+                    delete_diagram,
+                    get_markdown_output)
 
 app_name="chatapp"
 urlpatterns = [
@@ -78,7 +79,8 @@ urlpatterns = [
     path('chatapp/designer/json-files/<str:filename>/', get_json_file_content, name='get_json_file_content'),
     path('chatapp/designer/save-diagram/', save_diagram, name='save_diagram'), # envoi une question sur le document mémorisé en cours (multi document non implémenté)
     path('chatapp/designer/delete-diagram/<str:filename>/', delete_diagram, name='delete_diagram'),
-    
+    path('chatapp/designer/get_markdown_output/', get_markdown_output, name='get_markdown_output'),
+
     path('models/', models_dashboard, name="models_dashboard"), # écran acceuil models
     path('models/dpgf', models_dpgf_demo, name="models_dpgf_demo"), # demo application 
     path('models/dpgf/upload', models_dpgf_demo_upload, name="models_dpgf_demo_upload"), # demo application 
