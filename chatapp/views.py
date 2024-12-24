@@ -829,7 +829,8 @@ from django.views.decorators.http import require_GET, require_POST
 def list_json_files(request):
     directory_path = get_absolute_path('sharepoint/designer')
     try:
-        files = [f for f in os.listdir(directory_path) if f.endswith('.json')]
+        # files = [f for f in os.listdir(directory_path) if f.endswith('.json')]
+        files = [f for f in os.listdir(directory_path) ]
         return JsonResponse(files, safe=False)
     except FileNotFoundError:
         return JsonResponse({'error': 'Directory not found'}, status=404)
@@ -859,17 +860,39 @@ def save_diagram(request):
     try:
         data = json.loads(request.body)
         diagram_name = data.get('name')
+        # Ensure the diagram name ends with '.json'
+        if not diagram_name.endswith('.json'):
+            diagram_name += '.json'
+
         diagram_data = data.get('diagram')
         if not diagram_name or not diagram_data:
             return JsonResponse({'error': 'Diagram name or data not provided'}, status=400)
 
         # Define the path where the diagram will be saved
-        save_path = get_absolute_path(f'sharepoint/designer/{diagram_name}.json')
+        save_path = get_absolute_path(f'sharepoint/designer/{diagram_name}')
         with open(save_path, 'w', encoding='utf-8') as file:
             json.dump(json.loads(diagram_data), file, ensure_ascii=False, indent=4)
 
         return JsonResponse({'success': True})
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+
+@login_required
+def delete_diagram(request, filename):
+    try:
+        # Ensure the filename ends with '.json'
+        if not filename.endswith('.json'):
+            filename += '.json'
+
+        file_path = get_absolute_path(f'sharepoint/designer/{filename}')
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return JsonResponse({'success': True})
+        else:
+            return JsonResponse({'error': 'File not found'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)

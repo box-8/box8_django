@@ -42,13 +42,7 @@
         <button class="btn btn-outline-dark floating-button" id="diagramModal" data-bs-toggle="modal" data-bs-target="#jsonFilesModal">
             <i class="bi bi-folder"></i>
         </button>
-        <button class="btn btn-outline-dark floating-button" id="saveButton">
-            <i class="bi bi-save"></i>
-        </button>
-        <label class="btn btn-outline-dark floating-button mb-0">
-            <i class="bi bi-upload"></i>
-            <input type="file" id="loadButton" accept=".json" style="display: none;">
-        </label>
+        
         <button class="btn btn-primary floating-button" data-bs-toggle="modal" data-bs-target="#agentModal">
             <i class="bi bi-person-plus"></i>
         </button>
@@ -79,8 +73,20 @@
                 <div class="modal-footer">
                     <input type="text" id="diagramNameInput" class="form-control" placeholder="Enter diagram name">
                     <button type="button" class="btn btn-primary" id="saveCurrentDiagram">Save</button>
+                    <button type="button" class="btn btn-danger" id="deleteCurrentDiagram">Delete</button>
+                    <button type="button" class="btn btn-success" id="clearCurrentDiagram">New</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-dark" id="saveButton">
+                        <i class="bi bi-save"></i> Save to disk
+                    </button>
+                    <label class="btn btn-outline-dark mb-0">
+                        <i class="bi bi-upload"></i> Load from disk
+                        <input type="file" id="loadButton" accept=".json" style="display: none;">
+                    </label>
+                </div>
+                
             </div>
         </div>
     </div>

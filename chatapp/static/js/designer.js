@@ -612,6 +612,7 @@ function saveCurrentDiagram() {
     .then(data => {
         if (data.success) {
             alert('Diagram saved successfully!');
+            fetchAndDisplayJsonFiles();
         } else {
             alert('Error saving diagram: ' + data.error);
         }
@@ -679,17 +680,82 @@ function fetchAndDisplayJsonFiles() {
                 const listItem = document.createElement('li');
                 listItem.className = 'list-group-item';
                 listItem.textContent = file;
-                listItem.onclick = () => loadJsonFile(file);
+                listItem.onclick = () => {
+                    loadJsonFile(file);
+                    document.getElementById('diagramNameInput').value = file;
+                };
                 fileList.appendChild(listItem);
             });
         })
         .catch(error => console.error('Error fetching JSON files:', error));
 }
 
+// Attach event listener to modal show event
+const jsonFilesModal = document.getElementById('jsonFilesModal');
+if (jsonFilesModal) {
+    jsonFilesModal.addEventListener('show.bs.modal', fetchAndDisplayJsonFiles);
+}
+
 // Event listener for save button
 const saveButton = document.getElementById('saveCurrentDiagram');
 if (saveButton) {
     saveButton.addEventListener('click', saveCurrentDiagram);
+}
+
+// Function to clear and reset the diagram
+function clearCurrentDiagram() {
+    myDiagram.model.nodeDataArray = [];
+    myDiagram.model.linkDataArray = [];
+    agents.clear();
+    // Add default output node
+    const outputNode = { key: "output", role: "Output", goal: "output", category: "output" };
+    myDiagram.model.addNodeData(outputNode);
+    agents.set(outputNode.key, outputNode);
+    updateAgentDropdowns();
+    myDiagram.layoutDiagram(true);
+    ensureAllAgentsVisible();
+    document.getElementById('diagramNameInput').value = '';
+}
+
+// Event listener for clear button
+const clearButton = document.getElementById('clearCurrentDiagram');
+if (clearButton) {
+    clearButton.addEventListener('click', clearCurrentDiagram);
+}
+
+// Function to delete the current diagram
+function deleteCurrentDiagram() {
+    const diagramName = document.getElementById('diagramNameInput').value.trim();
+    if (!diagramName) {
+        alert('Please enter the name of the diagram to delete.');
+        return;
+    }
+    if (!confirm(`Are you sure you want to delete the diagram: ${diagramName}?`)) {
+        return;
+    }
+    fetch(`/chatapp/designer/delete-diagram/${encodeURIComponent(diagramName)}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': getCsrfToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Diagram deleted successfully!');
+            fetchAndDisplayJsonFiles(); // Refresh the list
+            clearCurrentDiagram(); // Clear the diagram from the canvas
+        } else {
+            alert('Error deleting diagram: ' + data.error);
+        }
+    })
+    .catch(error => console.error('Error deleting diagram:', error));
+}
+
+// Event listener for delete button
+const deleteButton = document.getElementById('deleteCurrentDiagram');
+if (deleteButton) {
+    deleteButton.addEventListener('click', deleteCurrentDiagram);
 }
 
 // Handle form submission for agents
