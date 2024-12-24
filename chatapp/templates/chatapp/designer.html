@@ -311,9 +311,9 @@
                 .then(markdownContent => {
                     const resultDiv = document.getElementById('crewaiResult');
                     contentMD = JSON.parse(markdownContent)
-                    console.log(contentMD.content);
+                    //console.log(contentMD.content);
                     
-                    resultDiv.innerHTML = `<pre>${marked.parse(contentMD.content)}</pre>`;
+                    resultDiv.innerHTML = `${marked.parse(contentMD.content)}`;
                     const modal = new bootstrap.Modal(document.getElementById('crewaiModal'));
                     modal.show();
                 })
