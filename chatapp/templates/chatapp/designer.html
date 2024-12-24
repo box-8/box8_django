@@ -76,6 +76,7 @@
                     <button type="button" class="btn btn-danger" id="deleteCurrentDiagram">Delete</button>
                     <button type="button" class="btn btn-success" id="clearCurrentDiagram">New</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-success" id="downloadMarkdownBtn">Download Markdown</button>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-success" id="getCurrentOutput">View Last Output</button>
@@ -316,6 +317,32 @@
                     resultDiv.innerHTML = `${marked.parse(contentMD.content)}`;
                     const modal = new bootstrap.Modal(document.getElementById('crewaiModal'));
                     modal.show();
+                })
+                .catch(error => {
+                    console.error('Error fetching markdown:', error);
+                });
+        });
+
+        // Add event listener for downloadMarkdownBtn
+        document.getElementById('downloadMarkdownBtn').addEventListener('click', function() {
+            const diagramNameInput = document.getElementById('diagramNameInput').value;
+
+            fetch(`/chatapp/designer/get_markdown_output/?diagramName=${encodeURIComponent(diagramNameInput)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.content) {
+                        const blob = new Blob([data.content], { type: 'text/markdown' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${diagramNameInput}.md`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    } else {
+                        console.error('Error: File content not found');
+                    }
                 })
                 .catch(error => {
                     console.error('Error fetching markdown:', error);
