@@ -26,14 +26,17 @@ from .views import (chatapp_dashboard,
                     chatapp_delete_file,
                     chroma_reset,
                     models_dashboard, 
-                    chatapp_webscrapping_demo,
+                    agent_designer,
                     models_dpgf_demo,
                     models_dpgf_demo_upload,
                     models_dpgf_demo_train,
                     models_dpgf_demo_ask,
                     models_vision_demo,
                     chatapp_get_sharepoint_files,
-                    create_crewai_process)
+                    create_crewai_process,
+                    list_json_files,
+                    get_json_file_content,
+                    save_diagram)
 
 app_name="chatapp"
 urlpatterns = [
@@ -69,9 +72,11 @@ urlpatterns = [
     
     path('chatapp/chroma_reset/', chroma_reset, name="chroma_reset"), # chroma_reset la vector db 
     
-    path('chatapp/rao', chatapp_webscrapping_demo, name="chatapp_webscrapping_demo"), # demo application webscrapping
-
-
+    path('chatapp/designer', agent_designer, name="agent_designer"), # demo application webscrapping
+    path('chatapp/designer/json-files/', list_json_files, name='list_json_files'),
+    path('chatapp/designer/json-files/<str:filename>/', get_json_file_content, name='get_json_file_content'),
+    path('chatapp/designer/save-diagram/', save_diagram, name='save_diagram'), # envoi une question sur le document mémorisé en cours (multi document non implémenté)
+    
     path('models/', models_dashboard, name="models_dashboard"), # écran acceuil models
     path('models/dpgf', models_dpgf_demo, name="models_dpgf_demo"), # demo application 
     path('models/dpgf/upload', models_dpgf_demo_upload, name="models_dpgf_demo_upload"), # demo application 
@@ -80,6 +85,7 @@ urlpatterns = [
 
 
     path('models/vision', models_vision_demo, name="models_vision_demo"), # demo application 
+    
     
 
     # path('chatapp/ressources/<str:analyse>/<str:nom_fichier>', afficher_ressources, name='afficher_ressources'),

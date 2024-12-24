@@ -945,31 +945,49 @@ Remplir la liste des informations géographiques dans un tableau respectant stri
     
 def crewai_lauch_process(request, folder, llm="openai"):
     try:
+        print(llm)
         data = json.loads(request.body)
-
         nodes = data.get('nodes', [])
         links = data.get('links', [])
 
         # Create CrewAI agents
         agents = {}  # Changed from list to dictionary
-        for node in nodes:
-            file = node.get('file', '')
-            src = os.path.join(folder, file) if file else ""
-
-            agent = Agent(
-                role=node.get('role', ''),
-                goal=node.get('goal', ''),
-                backstory=node.get('backstory', ''),
-                allow_delegation=False,
-                verbose=True,
-                llm = ChooseLLM(llm)
-            )
+        
+        last_node_index = len(nodes) - 1
+        
+        for index, node in enumerate(nodes):
+            role = node.get('role', '')
+            key = node.get('key', '')
             
-            if os.path.exists(src) and file!="":
-                agent.tools = [choose_tool(src=src)]
-                print(src)
+            if key=="output":
+                """agent = Agent(
+                    role="Rédacteur de document",
+                    goal="Rédiger un rapport complet au format markdown, avec un titre, des sous-titres, des listes à puces et des paragraphes structurés",
+                    backstory="Expert en rédaction de document au format markdown",
+                    allow_delegation=False,
+                    verbose=True,
+                    llm = ChooseLLM(llm)
+                )"""
+                continue
+            else:    
+                # print(f"New Agent : {role}")
+                file = node.get('file', '')
+                src = os.path.join(folder, file) if file else ""
+                agent = Agent(
+                    role=role,
+                    goal=node.get('goal', ''),
+                    backstory=node.get('backstory', ''),
+                    allow_delegation=False,
+                    verbose=True,
+                    # verbose=(index == last_node_index),
+                    llm = ChooseLLM(llm)
+                )
+            
+                if os.path.exists(src) and file!="":
+                    agent.tools = [choose_tool(src=src)]
+                    print(src)
                 
-            agents[node.get('key')] = agent  # Store agent with its node ID as key
+                agents[node.get('key')] = agent  # Store agent with its node ID as key
         
 
         # Create CrewAI tasks from links
@@ -977,7 +995,10 @@ def crewai_lauch_process(request, folder, llm="openai"):
         for link in links:
             from_agent = agents.get(link['from'])
             to_agent = agents.get(link['to'])
-            if from_agent and to_agent:
+            print(f"-Tache : {link['description']}")
+            print(f"  - Agent : {from_agent.role}")
+            
+            if from_agent :
                 task = Task(
                     description=link['description'],
                     agent=from_agent,
@@ -985,30 +1006,36 @@ def crewai_lauch_process(request, folder, llm="openai"):
                 )
                 tasks.append(task)
 
+        """output_task = Task(
+            description="Rédiger un rapport complet au format markdown, avec un titre, des sous-titres, des listes à puces et des paragraphes structurés",
+            agent=agents.get("output"),
+            expected_output="Un rapport complet au format markdown, avec un titre, des sous-titres, des listes à puces et des paragraphes structurés",
+        )
+        tasks.append(output_task)"""
+        
         # Create and process the crew
         crew = Crew(
             agents=list(agents.values()),  # Convert agents dict values to list
-            tasks=tasks,
-            verbose=True
+            tasks=tasks
         )
         
-        
-
         # Start the process (you might want to do this asynchronously)
         kickoff = crew.kickoff()
         result = ""
         for task in tasks:
             task_output = task.output
-            """         
-            print(task_output)
+            print(f"\n\n\n----------------------------------------------------")
             print(f"Task Description: {task_output.description}")
-            print(f"Task Summary: {task_output.summary}")
+            print(f" - Task Agent: {task_output.agent}")
+            print(f" - - - ")
             print(f"Raw Output: {task_output.raw}")
-            """
-            result += task_output.raw
-            result += "\n\n"
+            result += f"\n\n***"
+            result += f"\n\n# Task Description: {task_output.description}"
+            result += f"\n\n## Task Agent : {task_output.agent}"
+            result += f"\n\n{task_output.raw}"
+            
         
-        result += kickoff.raw
+        # result += kickoff.raw
         # result = "crew.kickoff()"
 
         return ({

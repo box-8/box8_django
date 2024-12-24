@@ -53,13 +53,13 @@ def chatapp_dashboard(request):
     return render(request, 'chatapp/dashboard.html', context=context)
 
 @login_required
-def chatapp_webscrapping_demo(request):
+def agent_designer(request):
     # initialisation des variables session 
     chatapp_init_session(request)
     context = {
         "welcome": "Collecteur de données externes"
     }
-    return render(request, 'chatapp/webscrapping.html', context=context)
+    return render(request, 'chatapp/designer.html', context=context)
 
 
 @login_required
@@ -820,3 +820,56 @@ def create_crewai_process(request):
         'status': 'error',
         'message': 'Method not allowed'
     }, status=405)
+
+
+from django.views.decorators.http import require_GET, require_POST
+
+@login_required
+@require_GET
+def list_json_files(request):
+    directory_path = get_absolute_path('sharepoint/designer')
+    try:
+        files = [f for f in os.listdir(directory_path) if f.endswith('.json')]
+        return JsonResponse(files, safe=False)
+    except FileNotFoundError:
+        return JsonResponse({'error': 'Directory not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+@require_GET
+def get_json_file_content(request, filename):
+    directory_path = get_absolute_path('sharepoint/designer')
+    file_path = os.path.join(directory_path, filename)
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            content = json.load(file)
+        return JsonResponse(content, safe=False)
+    except FileNotFoundError:
+        return JsonResponse({'error': 'File not found'}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON file'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def save_diagram(request):
+    try:
+        data = json.loads(request.body)
+        diagram_name = data.get('name')
+        diagram_data = data.get('diagram')
+        if not diagram_name or not diagram_data:
+            return JsonResponse({'error': 'Diagram name or data not provided'}, status=400)
+
+        # Define the path where the diagram will be saved
+        save_path = get_absolute_path(f'sharepoint/designer/{diagram_name}.json')
+        with open(save_path, 'w', encoding='utf-8') as file:
+            json.dump(json.loads(diagram_data), file, ensure_ascii=False, indent=4)
+
+        return JsonResponse({'success': True})
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

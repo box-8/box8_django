@@ -24,10 +24,36 @@ function init() {
         // Show context menu for links
         "contextMenuTool.showContextMenu": true,
         model: $(go.GraphLinksModel, {
-            nodeDataArray: [],
+            nodeDataArray: [
+                { key: "output", role: "Output", goal: "output", category: "output" }
+            ],
             linkDataArray: []
         })
     });
+
+    // Define output node template
+    myDiagram.nodeTemplateMap.add("output",
+        $(go.Node, "Auto",
+            {
+                selectionAdorned: true,
+                fromLinkable: false,
+                toLinkable: true
+            },
+            $(go.Shape, "Circle",
+                {
+                    fill: "white",
+                    stroke: "green",
+                    strokeWidth: 2,
+                    width: 60,
+                    height: 60
+                }
+            ),
+            $(go.TextBlock,
+                { margin: 8 },
+                new go.Binding("text", "role")
+            )
+        )
+    );
 
     // Define node template
     myDiagram.nodeTemplate =
@@ -524,27 +550,7 @@ function ensureAllAgentsVisible() {
     }, 100);
 }
 
-// Function to save diagram as JSON
-function saveDiagram() {
-    const diagramData = {
-        nodes: myDiagram.model.nodeDataArray,
-        links: myDiagram.model.linkDataArray
-    };
-    
-    const jsonString = JSON.stringify(diagramData, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'crew-ai-diagram.json';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-}
-
-// Function to load diagram from JSON
+// Function to load diagram from JSON loadJsonFile
 function loadDiagram(file) {
     const reader = new FileReader();
     reader.onload = function(event) {
@@ -578,6 +584,112 @@ function loadDiagram(file) {
         }
     };
     reader.readAsText(file);
+}
+
+// Function to save the current diagram to the server
+function saveCurrentDiagram() {
+    const diagramName = document.getElementById('diagramNameInput').value.trim();
+    if (!diagramName) {
+        alert('Please enter a name for the diagram.');
+        return;
+    }
+    const diagramData = {
+        nodes: myDiagram.model.nodeDataArray,
+        links: myDiagram.model.linkDataArray
+    };
+    fetch('/chatapp/designer/save-diagram/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify({
+            name: diagramName,
+            diagram: JSON.stringify(diagramData)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Diagram saved successfully!');
+        } else {
+            alert('Error saving diagram: ' + data.error);
+        }
+    })
+    .catch(error => console.error('Error saving diagram:', error));
+}
+
+// Function to save diagram as JSON
+function saveDiagram() {
+    const diagramData = {
+        nodes: myDiagram.model.nodeDataArray,
+        links: myDiagram.model.linkDataArray
+    };
+    
+    const jsonString = JSON.stringify(diagramData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'crew-ai-diagram.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+// Function to load diagram from JSON loadJsonFile
+function loadJsonFile(fileName) {
+    fetch(`/chatapp/designer/json-files/${fileName}`)
+        .then(response => response.json())
+        .then(diagramData => {
+            // Clear existing diagram
+            myDiagram.model.nodeDataArray = [];
+            myDiagram.model.linkDataArray = [];
+            agents.clear();
+
+            // Load nodes first
+            diagramData.nodes.forEach(node => {
+                agents.set(node.key, node);
+                myDiagram.model.addNodeData(node);
+            });
+
+            // Then load relationships
+            diagramData.links.forEach(link => {
+                myDiagram.model.addLinkData(link);
+            });
+
+            // Update UI
+            updateAgentDropdowns();
+            myDiagram.layoutDiagram(true);
+            ensureAllAgentsVisible();
+        })
+        .catch(error => console.error('Error loading JSON file:', error));
+}
+
+// Function to fetch JSON files and populate the modal
+function fetchAndDisplayJsonFiles() {
+    fetch('/chatapp/designer/json-files') // Assuming a backend endpoint exists
+        .then(response => response.json())
+        .then(files => {
+            const fileList = document.getElementById('jsonFileList');
+            fileList.innerHTML = '';
+            files.forEach(file => {
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item';
+                listItem.textContent = file;
+                listItem.onclick = () => loadJsonFile(file);
+                fileList.appendChild(listItem);
+            });
+        })
+        .catch(error => console.error('Error fetching JSON files:', error));
+}
+
+// Event listener for save button
+const saveButton = document.getElementById('saveCurrentDiagram');
+if (saveButton) {
+    saveButton.addEventListener('click', saveCurrentDiagram);
 }
 
 // Handle form submission for agents
@@ -644,7 +756,26 @@ document.getElementById("agentDeleteBtn").addEventListener("click", function(e) 
 });
 
 // Handle form submission for relationships
-document.getElementById("relationshipForm").addEventListener("submit", function(e) {
+const taskForm = document.getElementById("relationshipForm");
+const fromInput = document.getElementById("fromAgent");
+const toInput = document.getElementById("toAgent");
+
+// Update canvas when from/to attributes change
+fromInput.addEventListener("change", updateCanvas);
+toInput.addEventListener("change", updateCanvas);
+
+function updateCanvas() {
+    const fromValue = fromInput.value;
+    const toValue = toInput.value;
+    // Logic to update the diagram based on new from/to values
+    const linkData = myDiagram.model.linkDataArray.find(link => link.from === fromValue && link.to === toValue);
+    if (linkData) {
+        myDiagram.model.updateTargetBindings(linkData);
+    }
+    myDiagram.layoutDiagram(true);
+}
+
+taskForm.addEventListener("submit", function(e) {
     e.preventDefault();
     
     const fromKey = document.getElementById("fromAgent").value;
@@ -704,8 +835,9 @@ document.getElementById("relationshipDeleteBtn").addEventListener("click", funct
 });
 
 // Initialize diagram when page loads
-window.addEventListener('DOMContentLoaded', function() {
+window.onload = function() {
     init();
+    fetchAndDisplayJsonFiles();
     
     // Add save button handler
     document.getElementById('saveButton').addEventListener('click', function(e) {
@@ -722,4 +854,9 @@ window.addEventListener('DOMContentLoaded', function() {
             this.value = ''; // Reset file input
         }
     });
-});
+};
+
+// Helper function to get CSRF token
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
