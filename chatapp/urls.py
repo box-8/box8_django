@@ -39,7 +39,8 @@ from .views import (chatapp_dashboard,
                     designer_save_diagram,
                     designer_delete_diagram,
                     designer_get_markdown_output,
-                    designer_list_markdown_files)
+                    designer_list_markdown_files,
+                    designer_delete_markdown_file)
 
 app_name="chatapp"
 urlpatterns = [
@@ -82,6 +83,7 @@ urlpatterns = [
     path('chatapp/designer/get_markdown_output/', designer_get_markdown_output, name='get_markdown_output'),
     path('chatapp/designer/list_markdown_files/', designer_list_markdown_files, name='list_markdown_files'),
     path('chatapp/designer/launch_crewai/', designer_launch_crewai, name='designer_launch_crewai'),
+    path('chatapp/designer/delete-markdown-file/', designer_delete_markdown_file, name='designer_delete_markdown_file'),
     
     path('models/', models_dashboard, name="models_dashboard"), # écran acceuil models
     path('models/dpgf', models_dpgf_demo, name="models_dpgf_demo"), # demo application 

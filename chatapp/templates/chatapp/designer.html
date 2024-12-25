@@ -214,6 +214,8 @@
 
                     <h6 id="downloadMarkdownBtnTitle"></h6>
                     <button type="button" class="btn btn-success" id="downloadMarkdownBtn">Download Markdown</button>
+                    <button type="button" class="btn btn-success" id="downloadWordBtn">Download Word</button>
+                    <button type="button" class="btn btn-danger" id="deleteMarkdownBtn">Delete</button>
                 
                     <div id="crewaiResult"></div>
                 </div>
@@ -305,6 +307,7 @@
 
                 // Show the modal
                 const modal = new bootstrap.Modal(document.getElementById('crewaiModal'));
+                explorerPopulate()
                 modal.show();
             })
             .catch(error => {

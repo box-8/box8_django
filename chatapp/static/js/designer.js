@@ -1000,6 +1000,40 @@ window.onload = function() {
             this.value = ''; // Reset file input
         }
     });
+    
+    // Add delete markdown button handler
+    document.getElementById('deleteMarkdownBtn').addEventListener('click', function() {
+        const filename = document.getElementById('downloadMarkdownBtnTitle').textContent.trim();
+        // alert(filename)
+        
+        if (!filename) {
+            alert('No file specified to delete.');
+            return;
+        }
+
+        fetch('/chatapp/designer/delete-markdown-file/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ filename: filename })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                explorerPopulate()
+                //alert('File deleted successfully.');
+                $('#crewaiModal').modal('hide');
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the file.');
+        });
+    });
 };
 
 // Helper function to get CSRF token

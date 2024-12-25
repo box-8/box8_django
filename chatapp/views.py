@@ -910,3 +910,28 @@ def designer_delete_diagram(request, filename):
             return JsonResponse({'error': 'File not found'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def designer_delete_markdown_file(request):
+    try:
+        data = json.loads(request.body)
+        filename = data.get('filename')
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    if not filename:
+        return JsonResponse({'error': 'No filename specified yet'}, status=400)
+
+    file_path = os.path.join(user_destination_dir(request), f"{filename}")
+
+    
+    if not os.path.exists(file_path):
+        return JsonResponse({'error': 'File not found'}, status=404)
+
+    try:
+        os.remove(file_path)
+        return JsonResponse({'success': 'File deleted successfully'})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
