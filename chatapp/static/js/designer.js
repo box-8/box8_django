@@ -240,7 +240,8 @@ function init() {
                 routing: go.Link.AvoidsNodes,
                 corner: 5,
                 selectionAdorned: true,
-                selectionChanged: onLinkSelectionChanged,
+                
+                doubleClick: (e, link) => onLinkSelectionChanged(link),
                 // Add tooltip to show all relationship properties
                 toolTip: $(go.Adornment, "Auto",
                     $(go.Shape, { fill: "#FFFFCC", stroke: "#666", strokeWidth: 0.5 }),
