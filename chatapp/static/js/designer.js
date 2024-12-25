@@ -18,6 +18,13 @@ document.addEventListener('keydown', (e) => {
         isCtrlPressed = true;
         myDiagram.nodes.each(node => node.fromLinkable = isCtrlPressed);
     }
+    if (e.key === 'Delete' && myDiagram.selection.count > 0) {
+        myDiagram.selection.each(part => {
+            if (part instanceof go.Link) {
+                myDiagram.remove(part);
+            }
+        });
+    }
 });
 
 document.addEventListener('keyup', (e) => {
