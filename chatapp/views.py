@@ -6,9 +6,10 @@ from django.conf import settings
 from django.http import FileResponse, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
+from django.views.decorators.http import require_GET, require_POST
 
 from lorem_text import lorem
-from box8.ChatAgent import (crewai_lauch_process, 
+from box8.ChatAgent import (crewai_launch_process, 
                             chat, 
                             chat_enhance,
                             chat_summarize, 
@@ -19,22 +20,6 @@ from box8.utils_pdf import PdfUtils
 
 import markdown
 
-
-"""
-Naldia.async_mode = False
-
-chat = Chatter()
-# l'objet commun ne sert qu’à vérifier la présence d’une vectorisation antérieure, voir new_async_memorizer
-memorizer = Memorizer()
-
-# deprecated : async_memorize = sync_to_async(memorizer.memorize)
-async_load = sync_to_async(chat.load)
-async_ask = sync_to_async(chat.ask)
-"""
-
-
-"""résumer la fiche référence avec une proposition de localisation géographique dans un json selon le format : {"résumé" : résumé, lat : latitude, lng : longitude}. Ne retourner que le json"""
-"""résumer la mission avec une proposition de localisation géographique dans un json selon le format : {"résumé" : résumé, lat : latitude, lng : longitude}"""
 
 # FUNCTIONS
 def get_absolute_path(relative_path):
@@ -53,7 +38,7 @@ def chatapp_dashboard(request):
     return render(request, 'chatapp/dashboard.html', context=context)
 
 @login_required
-def agent_designer(request):
+def designer_agent_designer(request):
     # initialisation des variables session 
     chatapp_init_session(request)
     context = {
@@ -806,20 +791,15 @@ def chatapp_get_sharepoint_files(request):
     return JsonResponse({'files': all_files})
 
 
-def create_crewai_process(request):
+def designer_launch_crewai(request):
     if request.method == 'POST':
         data = json.loads(request.body)
         llm = request.session.get('selected_llm', 'openai')
         diagram_name = data.get('diagramNameInput', 'default_diagram')
-
         directory = user_destination_dir(request)
-
-        response=crewai_lauch_process(request, folder=directory, llm=llm) 
-        
+        response=crewai_launch_process(request, folder=directory, llm=llm) 
         file_path = os.path.join(directory, f"{diagram_name}.md")
-
         message = response.get('message', '')
-
         with open(file_path, 'w', encoding='utf-8') as markdown_file:
             markdown_file.write(message)
 
@@ -831,11 +811,11 @@ def create_crewai_process(request):
     }, status=405)
 
 
-def get_markdown_output(request):
+def designer_get_markdown_output(request):
     diagram_name = request.GET.get('diagramName', 'default_diagram')
     directory = user_destination_dir(request)
-    file_path = os.path.join(directory, f"{diagram_name}.md")
-
+    file_path = os.path.join(directory, f"{diagram_name}")
+    print(file_path)
     if os.path.exists(file_path):
         with open(file_path, 'r', encoding='utf-8') as file:
             content = file.read()
@@ -844,11 +824,20 @@ def get_markdown_output(request):
         return JsonResponse({'error': 'File not found'}, status=404)
 
 
-from django.views.decorators.http import require_GET, require_POST
+@login_required
+@require_GET
+def designer_list_markdown_files(request):
+    user_dir = user_destination_dir(request)
+    md_files = [f for f in os.listdir(user_dir) if f.endswith('.md')]
+    return JsonResponse({'files': md_files})
+
+
+
+
 
 @login_required
 @require_GET
-def list_json_files(request):
+def designer_list_json_files(request):
     directory_path = get_absolute_path('sharepoint/designer')
     try:
         # files = [f for f in os.listdir(directory_path) if f.endswith('.json')]
@@ -861,7 +850,7 @@ def list_json_files(request):
 
 @login_required
 @require_GET
-def get_json_file_content(request, filename):
+def designer_get_diagram(request, filename):
     directory_path = get_absolute_path('sharepoint/designer')
     file_path = os.path.join(directory_path, filename)
     try:
@@ -876,9 +865,12 @@ def get_json_file_content(request, filename):
         return JsonResponse({'error': str(e)}, status=500)
 
 
+
+
+
 @login_required
 @require_POST
-def save_diagram(request):
+def designer_save_diagram(request):
     try:
         data = json.loads(request.body)
         diagram_name = data.get('name')
@@ -904,7 +896,7 @@ def save_diagram(request):
 
 
 @login_required
-def delete_diagram(request, filename):
+def designer_delete_diagram(request, filename):
     try:
         # Ensure the filename ends with '.json'
         if not filename.endswith('.json'):

@@ -11,6 +11,22 @@ const RELATIONSHIP_TYPES = [
     { text: "Delegates to", value: "delegates" }
 ];
 
+let isCtrlPressed = false;
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Control') {
+        isCtrlPressed = true;
+        myDiagram.nodes.each(node => node.fromLinkable = isCtrlPressed);
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    if (e.key === 'Control') {
+        isCtrlPressed = false;
+        myDiagram.nodes.each(node => node.fromLinkable = isCtrlPressed);
+    }
+});
+
 // Initialize GoJS
 function init() {
     const $ = go.GraphObject.make;
@@ -61,10 +77,11 @@ function init() {
             {
                 selectionAdorned: true,
                 resizable: true,
+                movable: true,
                 layoutConditions: go.Part.LayoutStandard & ~go.Part.LayoutNodeSized,
-                fromLinkable: true,
+                fromLinkable: false,  // Default to false
                 toLinkable: true,
-                selectionChanged: onNodeSelectionChanged
+                doubleClick: (e, node) => onNodeSelectionChanged(node)
             },
             // Add tooltip to show all agent properties
             {
@@ -679,8 +696,15 @@ function fetchAndDisplayJsonFiles() {
             files.forEach(file => {
                 const listItem = document.createElement('li');
                 listItem.className = 'list-group-item';
-                listItem.textContent = file;
+                // Remove .json.md extension from the file name
+                const fileName = file.replace(/\.json\.md$/, '');
+                listItem.textContent = fileName;
                 listItem.onclick = () => {
+                    // Remove the 'active' class from all list items
+                    const items = fileList.querySelectorAll('.list-group-item');
+                    items.forEach(item => item.classList.remove('active'));
+                    // Add the 'active' class to the clicked item
+                    listItem.classList.add('active');
                     loadJsonFile(file);
                     document.getElementById('diagramNameInput').value = file;
                 };
@@ -688,6 +712,53 @@ function fetchAndDisplayJsonFiles() {
             });
         })
         .catch(error => console.error('Error fetching JSON files:', error));
+}
+
+// Function to populate the explorer with markdown files
+function explorerPopulate() {
+    fetch('/chatapp/designer/list_markdown_files/')
+        .then(response => response.json())
+        .then(data => {
+            const explorerList = document.getElementById('explorer_analyses');
+            explorerList.innerHTML = '';
+            data.files.forEach(file => {
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item';
+                // Remove .json.md extension from the file name
+                const fileName = file.replace(/\.json\.md$/, '');
+                listItem.textContent = fileName;
+                listItem.linkFile = file;
+                listItem.onclick = () => {
+                    // alert(listItem.linkFile)
+                    // Remove the 'active' class from all list items
+                    const items = explorerList.querySelectorAll('.list-group-item');
+                    items.forEach(item => item.classList.remove('active'));
+                    // Add the 'active' class to the clicked item
+                    listItem.classList.add('active');
+                    
+
+                    const downloadMarkdownBtnTitle = listItem.linkFile;
+                    document.getElementById('downloadMarkdownBtnTitle').innerText = downloadMarkdownBtnTitle
+                    fetch(`/chatapp/designer/get_markdown_output/?diagramName=${encodeURIComponent(file)}`)
+                    .then(response => response.text())
+                    .then(markdownContent => {
+                        const resultDiv = document.getElementById('crewaiResult');
+                        contentMD = JSON.parse(markdownContent)
+                        //console.log(contentMD.content);
+                        
+                        resultDiv.innerHTML = `${marked.parse(contentMD.content)}`;
+                        const modal = new bootstrap.Modal(document.getElementById('crewaiModal'));
+                        modal.show();
+                    })
+                    .catch(error => {
+                        console.error('Error fetching markdown:', error);
+                    });
+                    //document.getElementById('diagramNameInput').value = file;
+                };
+                explorerList.appendChild(listItem);
+            });
+        })
+        .catch(error => console.error('Error fetching markdown files:', error));
 }
 
 // Attach event listener to modal show event
@@ -904,6 +975,7 @@ document.getElementById("relationshipDeleteBtn").addEventListener("click", funct
 window.onload = function() {
     init();
     fetchAndDisplayJsonFiles();
+    explorerPopulate() 
     
     // Add save button handler
     document.getElementById('saveButton').addEventListener('click', function(e) {

@@ -1,4 +1,10 @@
 
+var analyse_courante = {"username":"","analyse":"","entries":[],"prompt":"", "history":[]} 
+var fichier_courant ={"filename":""}
+
+const turndownService = new TurndownService({ headingStyle: 'atx' });;
+
+
 // Global functions
 function getCookie(name) {
   const cookieValue = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');

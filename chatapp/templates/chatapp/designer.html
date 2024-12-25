@@ -3,7 +3,7 @@
 
 {% block css %}
 <script src="https://unpkg.com/gojs/release/go.js"></script>
-<link rel="stylesheet" href="css/designer.css">
+<link rel="stylesheet" href="{% static 'css/designer.css' %}">
 <style>
     .floating-buttons {
         position: fixed;
@@ -22,20 +22,26 @@
         justify-content: center;
         box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
-    
-    
-
 </style>
+
 {% endblock css %}
 
 {% block title %}CrewAI Agent Diagram Builder{% endblock title %}
+
+
+{% block content_left %}
+<h5>Analyses</h5>
+<ul id="explorer_analyses" class="list-group" style="z-index: 99999;">
+  loading ...
+</ul>
+{% endblock content_left %}
 
 {% block content %}
     {% csrf_token %}
     <!-- Fixed Menu Bar -->
     
     <!-- Diagram Area -->
-    <div id="diagramDiv" style="height: calc(100vh - 56px); background-color: #f8f9fa; position: fixed; right: 0; top: 56px; width: 85%; overflow: auto;"></div>
+    <div id="diagramDiv" style="height: calc(100vh - 56px); background-color: #f8f9fa; position: fixed; right: 0; top: 56px; width: 75%; overflow: auto;"></div>
 
     <!-- Floating Action Buttons -->
     <div class="floating-buttons">
@@ -76,10 +82,9 @@
                     <button type="button" class="btn btn-danger" id="deleteCurrentDiagram">Delete</button>
                     <button type="button" class="btn btn-success" id="clearCurrentDiagram">New</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-success" id="downloadMarkdownBtn">Download Markdown</button>
+                    
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-success" id="getCurrentOutput">View Last Output</button>
                     <button class="btn btn-outline-dark" id="saveButton">
                         <i class="bi bi-save"></i> Save to disk
                     </button>
@@ -201,8 +206,15 @@
                 <div class="modal-header">
                     <h5 class="modal-title">CrewAI Process Result</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    
                 </div>
+
+
                 <div class="modal-body">
+
+                    <h6 id="downloadMarkdownBtnTitle"></h6>
+                    <button type="button" class="btn btn-success" id="downloadMarkdownBtn">Download Markdown</button>
+                
                     <div id="crewaiResult"></div>
                 </div>
             </div>
@@ -216,6 +228,8 @@
 <script>
     // Load SharePoint files when the page loads
     document.addEventListener('DOMContentLoaded', function() {
+         
+
         fetch('/chatapp/get_sharepoint_files/')
             .then(response => response.json())
             .then(data => {
@@ -262,7 +276,7 @@
             diagramData.diagramNameInput = diagramNameInput;
 
             // Send to backend
-            fetch('/chatapp/create_crewai_process/', {
+            fetch('/chatapp/designer/launch_crewai/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -303,29 +317,11 @@
             });
         });
 
-        // Add event listener for getCurrentOutput button
-        document.getElementById('getCurrentOutput').addEventListener('click', function() {
-            const diagramNameInput = document.getElementById('diagramNameInput').value;
-
-            fetch(`/chatapp/designer/get_markdown_output/?diagramName=${encodeURIComponent(diagramNameInput)}`)
-                .then(response => response.text())
-                .then(markdownContent => {
-                    const resultDiv = document.getElementById('crewaiResult');
-                    contentMD = JSON.parse(markdownContent)
-                    //console.log(contentMD.content);
-                    
-                    resultDiv.innerHTML = `${marked.parse(contentMD.content)}`;
-                    const modal = new bootstrap.Modal(document.getElementById('crewaiModal'));
-                    modal.show();
-                })
-                .catch(error => {
-                    console.error('Error fetching markdown:', error);
-                });
-        });
+        
 
         // Add event listener for downloadMarkdownBtn
         document.getElementById('downloadMarkdownBtn').addEventListener('click', function() {
-            const diagramNameInput = document.getElementById('diagramNameInput').value;
+            const diagramNameInput = document.getElementById('downloadMarkdownBtnTitle').innerText;
 
             fetch(`/chatapp/designer/get_markdown_output/?diagramName=${encodeURIComponent(diagramNameInput)}`)
                 .then(response => response.json())

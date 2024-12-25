@@ -50,7 +50,13 @@ def ChooseLLM(name=""):
             model="groq/llama-3.1-70b-versatile",
             temperature=0.2
         )
-    
+    elif name=="groq-llama3":
+        # API_KEY = os.getenv("GROQ_API_KEY")
+        # selected_llm = ChatGroq(temperature=0, groq_api_key=API_KEY, model_name="groq/llama-3.1-70b-versatile")
+        selected_llm = LLM(
+            model="groq/llama3-8b-8192",
+            temperature=0.2
+        )
     elif name=="openai":
         selected_llm = LLM(
             model="gpt-4",
@@ -941,12 +947,51 @@ Remplir la liste des informations géographiques dans un tableau respectant stri
 
     
     
+def reorder_agents(json_data):
+    # Extraire les liens et les noeuds
+    links = json_data['links']
+    nodes = json_data['nodes']
+
+    # Créer un dictionnaire pour les noeuds par clé
+    node_dict = {node['key']: node for node in nodes}
+
+    # Extraire l'ordre des clés dans les relations from/to
+    # On commence par le premier "from" qui est le patient
+    ordered_keys = []
+    # Dictionnaire pour vérifier les relations existantes
+    visited = set()
+
+    # Ajouter toutes les clés "from" dans l'ordre des relations
+    for link in links:
+        from_key = link['from']
+        if from_key not in visited:
+            ordered_keys.append(from_key)
+            visited.add(from_key)
+        to_key = link['to']
+        if to_key not in visited:
+            ordered_keys.append(to_key)
+            visited.add(to_key)
+
+    # Ajouter la clé "output" à la fin
+    if 'output' not in visited:
+        ordered_keys.append('output')
+
+    # Reorganiser les noeuds en suivant l'ordre des clés dans ordered_keys
+    ordered_nodes = [node_dict[key] for key in ordered_keys]
+
+    # Retourner le json avec les nodes réorganisés
+    return {
+        "nodes": ordered_nodes,
+        "links": links
+    }
     
-    
-def crewai_lauch_process(request, folder, llm="openai"):
+def crewai_launch_process(request, folder, llm="openai"):
     try:
         print(llm)
+        reorder_agents
         data = json.loads(request.body)
+        data = reorder_agents(data)
+
         nodes = data.get('nodes', [])
         links = data.get('links', [])
 
@@ -960,14 +1005,6 @@ def crewai_lauch_process(request, folder, llm="openai"):
             key = node.get('key', '')
             
             if key=="output":
-                """agent = Agent(
-                    role="Rédacteur de document",
-                    goal="Rédiger un rapport complet au format markdown, avec un titre, des sous-titres, des listes à puces et des paragraphes structurés",
-                    backstory="Expert en rédaction de document au format markdown",
-                    allow_delegation=False,
-                    verbose=True,
-                    llm = ChooseLLM(llm)
-                )"""
                 continue
             else:    
                 # print(f"New Agent : {role}")
@@ -1005,13 +1042,6 @@ def crewai_lauch_process(request, folder, llm="openai"):
                     expected_output=link.get('expected_output', ''),
                 )
                 tasks.append(task)
-
-        """output_task = Task(
-            description="Rédiger un rapport complet au format markdown, avec un titre, des sous-titres, des listes à puces et des paragraphes structurés",
-            agent=agents.get("output"),
-            expected_output="Un rapport complet au format markdown, avec un titre, des sous-titres, des listes à puces et des paragraphes structurés",
-        )
-        tasks.append(output_task)"""
         
         # Create and process the crew
         crew = Crew(
@@ -1030,8 +1060,8 @@ def crewai_lauch_process(request, folder, llm="openai"):
             print(f" - - - ")
             print(f"Raw Output: {task_output.raw}")
             result += f"\n\n***"
-            result += f"\n\n# Task Description: {task_output.description}"
-            result += f"\n\n## Task Agent : {task_output.agent}"
+            result += f"\n\n# {task_output.description}"
+            result += f"\n\n## {task_output.agent}"
             result += f"\n\n{task_output.raw}"
             
 
@@ -1052,8 +1082,7 @@ def crewai_lauch_process(request, folder, llm="openai"):
             'message': "ERROR " + str(e)
         }
 
-
-
+    
 
 
 
@@ -1101,6 +1130,9 @@ def webscrap(pdf, question , history=None, llm="openai"):
     except Exception as e:
         result = e
     return result.raw
+
+
+
 if __name__ == "__main__":
 
     print(webscrap(

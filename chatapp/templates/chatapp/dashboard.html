@@ -80,8 +80,6 @@
   Choisir un dossier d'analyse ...
 </ul>
 
-
-
 {% endblock content_left %}
 
 {% block content %}
@@ -221,6 +219,13 @@
                         groq/mixtral-8x7b-32768
                       </label>
                   </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="llm" id="groq-llama3" value="groq-llama3" {% if request.session.selected_llm == "groq-llama3" %}checked{% endif %} >
+                    <label class="form-check-label" for="groq-llama3">
+                      groq/llama3-8b-8192
+                    </label>
+                </div>
+                  
 
                   <div class="form-check">
                     <input class="form-check-input" type="radio" name="llm" id="mistral" value="mistral" {% if request.session.selected_llm == "mistral" %}checked{% endif %} >
@@ -348,10 +353,6 @@
 
 
 <script>
-  var analyse_courante = {"username":"","analyse":"","entries":[],"prompt":"", "history":[]} 
-  var fichier_courant ={"filename":""}
-
-  const turndownService = new TurndownService({ headingStyle: 'atx' });;
 
 
 

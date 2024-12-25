@@ -26,19 +26,20 @@ from .views import (chatapp_dashboard,
                     chatapp_delete_file,
                     chroma_reset,
                     models_dashboard, 
-                    agent_designer,
+                    designer_agent_designer,
                     models_dpgf_demo,
                     models_dpgf_demo_upload,
                     models_dpgf_demo_train,
                     models_dpgf_demo_ask,
                     models_vision_demo,
                     chatapp_get_sharepoint_files,
-                    create_crewai_process,
-                    list_json_files,
-                    get_json_file_content,
-                    save_diagram,
-                    delete_diagram,
-                    get_markdown_output)
+                    designer_launch_crewai,
+                    designer_list_json_files,
+                    designer_get_diagram,
+                    designer_save_diagram,
+                    designer_delete_diagram,
+                    designer_get_markdown_output,
+                    designer_list_markdown_files)
 
 app_name="chatapp"
 urlpatterns = [
@@ -51,7 +52,6 @@ urlpatterns = [
     path('chatapp/set_fiche/', chatapp_set_fiches, name="chatapp_set_fiches"), # définit le dossier d'analyse et la liste des documents avec lesquels on va pouvoir chatter
     path('chatapp/memorize/', chatapp_summarize, name="chatapp_summarize"), # mémorise un document pour po
     path('chatapp/get_sharepoint_files/', chatapp_get_sharepoint_files, name="chatapp_get_sharepoint_files"), # get all files from user's SharePoint folder
-    path('chatapp/create_crewai_process/', create_crewai_process, name='create_crewai_process'),
     path('chatapp/rag_file/', chatapp_file_to_rag, name="chatapp_file_to_rag"), # définit le dossier d'analyse et la liste des documents avec lesquels on va pouvoir chatter
      
     path('chatapp/talk/', chatapp_talk, name="chatapp_talk"), # envoi une question sur le document mémorisé en cours (multi document non implémenté)
@@ -74,13 +74,15 @@ urlpatterns = [
     
     path('chatapp/chroma_reset/', chroma_reset, name="chroma_reset"), # chroma_reset la vector db 
     
-    path('chatapp/designer', agent_designer, name="agent_designer"), # demo application webscrapping
-    path('chatapp/designer/json-files/', list_json_files, name='list_json_files'),
-    path('chatapp/designer/json-files/<str:filename>/', get_json_file_content, name='get_json_file_content'),
-    path('chatapp/designer/save-diagram/', save_diagram, name='save_diagram'), # envoi une question sur le document mémorisé en cours (multi document non implémenté)
-    path('chatapp/designer/delete-diagram/<str:filename>/', delete_diagram, name='delete_diagram'),
-    path('chatapp/designer/get_markdown_output/', get_markdown_output, name='get_markdown_output'),
-
+    path('chatapp/designer', designer_agent_designer, name="agent_designer"), # demo application webscrapping
+    path('chatapp/designer/json-files/', designer_list_json_files, name='list_json_files'),
+    path('chatapp/designer/json-files/<str:filename>/', designer_get_diagram, name='designer_get_diagram'),
+    path('chatapp/designer/save-diagram/', designer_save_diagram, name='save_diagram'), # envoi une question sur le document mémorisé en cours (multi document non implémenté)
+    path('chatapp/designer/delete-diagram/<str:filename>/', designer_delete_diagram, name='delete_diagram'),
+    path('chatapp/designer/get_markdown_output/', designer_get_markdown_output, name='get_markdown_output'),
+    path('chatapp/designer/list_markdown_files/', designer_list_markdown_files, name='list_markdown_files'),
+    path('chatapp/designer/launch_crewai/', designer_launch_crewai, name='designer_launch_crewai'),
+    
     path('models/', models_dashboard, name="models_dashboard"), # écran acceuil models
     path('models/dpgf', models_dpgf_demo, name="models_dpgf_demo"), # demo application 
     path('models/dpgf/upload', models_dpgf_demo_upload, name="models_dpgf_demo_upload"), # demo application 
