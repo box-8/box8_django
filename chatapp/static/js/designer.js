@@ -13,6 +13,28 @@ const RELATIONSHIP_TYPES = [
 
 let isCtrlPressed = false;
 
+const agentForm = document.getElementById("agentForm");
+// Handle form submission for relationships
+const taskForm = document.getElementById("relationshipForm");
+const fromInput = document.getElementById("fromAgent");
+const toInput = document.getElementById("toAgent");
+
+// Update canvas when from/to attributes change
+fromInput.addEventListener("change", updateCanvas);
+toInput.addEventListener("change", updateCanvas);
+
+function updateCanvas() {
+    const fromValue = fromInput.value;
+    const toValue = toInput.value;
+    // Logic to update the diagram based on new from/to values
+    const linkData = myDiagram.model.linkDataArray.find(link => link.from === fromValue && link.to === toValue);
+    if (linkData) {
+        myDiagram.model.updateTargetBindings(linkData);
+    }
+    myDiagram.layoutDiagram(true);
+}
+
+
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Control') {
         isCtrlPressed = true;
@@ -445,8 +467,9 @@ function updateFormToEditMode() {
 }
 
 // Function to reset the agent form
+
 function resetAgentForm() {
-    document.getElementById("agentForm").reset();
+    agentForm.reset();
     selectedNode = null;
     document.getElementById("agentSubmitBtn").textContent = "Add Agent";
     document.getElementById("agentCancelBtn").style.display = "none";
@@ -575,40 +598,53 @@ function ensureAllAgentsVisible() {
     }, 100);
 }
 
+// Function to load diagram data
+function loadDiagramData(diagramData) {
+    // Clear existing diagram
+    myDiagram.model.nodeDataArray = [];
+    myDiagram.model.linkDataArray = [];
+    agents.clear();
+
+    // Load nodes first
+    diagramData.nodes.forEach(node => {
+        agents.set(node.key, node);
+        myDiagram.model.addNodeData(node);
+    });
+
+    // Then load relationships
+    diagramData.links.forEach(link => {
+        myDiagram.model.addLinkData(link);
+    });
+
+    // Update UI
+    updateAgentDropdowns();
+    myDiagram.layoutDiagram(true);
+    ensureAllAgentsVisible();
+}
+
 // Function to load diagram from JSON loadJsonFile
-function loadDiagram(file) {
+function loadDiagramFromDisk(file) {
     const reader = new FileReader();
     reader.onload = function(event) {
         try {
             const diagramData = JSON.parse(event.target.result);
-            
-            // Clear existing diagram
-            myDiagram.model.nodeDataArray = [];
-            myDiagram.model.linkDataArray = [];
-            agents.clear();
-            
-            // Load nodes first
-            diagramData.nodes.forEach(node => {
-                agents.set(node.key, node);
-                myDiagram.model.addNodeData(node);
-            });
-            
-            // Then load relationships
-            diagramData.links.forEach(link => {
-                myDiagram.model.addLinkData(link);
-            });
-            
-            // Update UI
-            updateAgentDropdowns();
-            myDiagram.layoutDiagram(true);
-            ensureAllAgentsVisible();
-            
+            loadDiagramData(diagramData);
         } catch (error) {
             alert('Error loading diagram: Invalid file format');
             console.error('Error loading diagram:', error);
         }
     };
     reader.readAsText(file);
+}
+
+// Function to load diagram from JSON loadDiagramFromServer
+function loadDiagramFromServer(fileName) {
+    fetch(`/chatapp/designer/json-files/${fileName}`)
+        .then(response => response.json())
+        .then(diagramData => {
+            loadDiagramData(diagramData);
+        })
+        .catch(error => console.error('Error loading JSON file:', error));
 }
 
 // Function to save the current diagram to the server
@@ -637,7 +673,7 @@ function saveCurrentDiagram() {
     .then(data => {
         if (data.success) {
             alert('Diagram saved successfully!');
-            fetchAndDisplayJsonFiles();
+            diagramFilesPopulate();
         } else {
             alert('Error saving diagram: ' + data.error);
         }
@@ -645,8 +681,22 @@ function saveCurrentDiagram() {
     .catch(error => console.error('Error saving diagram:', error));
 }
 
+
+function DiagramData(){
+    const diagramData = {
+        nodes: myDiagram.model.nodeDataArray,
+        links: myDiagram.model.linkDataArray
+    };
+    return diagramData
+}
+
+
+function redrawDiagram(){
+    loadDiagramData(DiagramData());
+}
+
 // Function to save diagram as JSON
-function saveDiagram() {
+function saveDiagramToDisk() {
     const diagramData = {
         nodes: myDiagram.model.nodeDataArray,
         links: myDiagram.model.linkDataArray
@@ -663,63 +713,6 @@ function saveDiagram() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-}
-
-// Function to load diagram from JSON loadJsonFile
-function loadJsonFile(fileName) {
-    fetch(`/chatapp/designer/json-files/${fileName}`)
-        .then(response => response.json())
-        .then(diagramData => {
-            // Clear existing diagram
-            myDiagram.model.nodeDataArray = [];
-            myDiagram.model.linkDataArray = [];
-            agents.clear();
-
-            // Load nodes first
-            diagramData.nodes.forEach(node => {
-                agents.set(node.key, node);
-                myDiagram.model.addNodeData(node);
-            });
-
-            // Then load relationships
-            diagramData.links.forEach(link => {
-                myDiagram.model.addLinkData(link);
-            });
-
-            // Update UI
-            updateAgentDropdowns();
-            myDiagram.layoutDiagram(true);
-            ensureAllAgentsVisible();
-        })
-        .catch(error => console.error('Error loading JSON file:', error));
-}
-
-// Function to fetch JSON files and populate the modal
-function fetchAndDisplayJsonFiles() {
-    fetch('/chatapp/designer/json-files') // Assuming a backend endpoint exists
-        .then(response => response.json())
-        .then(files => {
-            const fileList = document.getElementById('jsonFileList');
-            fileList.innerHTML = '';
-            files.forEach(file => {
-                const listItem = document.createElement('li');
-                listItem.className = 'list-group-item';
-                // Remove .json.md extension from the file name
-                const fileName = file.replace(/\.json\.md$/, '');
-                listItem.textContent = fileName;
-                listItem.onclick = () => {
-                    // Remove the 'active' class from all list items
-                    const items = fileList.querySelectorAll('.list-group-item');
-                    items.forEach(item => item.classList.remove('active'));
-                    // Add the 'active' class to the clicked item
-                    listItem.classList.add('active');
-                    loadJsonFile(file);
-                    document.getElementById('diagramNameInput').value = file;
-                };
-                fileList.appendChild(listItem);
-            });
-        })
-        .catch(error => console.error('Error fetching JSON files:', error));
 }
 
 // Function to populate the explorer with markdown files
@@ -769,10 +762,60 @@ function explorerPopulate() {
         .catch(error => console.error('Error fetching markdown files:', error));
 }
 
+// Function to fetch JSON files and populate the modal
+function diagramFilesPopulate() {
+    fetch('/chatapp/designer/json-files') // Assuming a backend endpoint exists
+        .then(response => response.json())
+        .then(files => {
+            const fileList = document.getElementById('jsonFileList');
+            fileList.innerHTML = '';
+            files.forEach(file => {
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item';
+                // Remove .json.md extension from the file name
+                const fileName = file.replace(/\.json\.md$/, '');
+                listItem.textContent = fileName;
+                listItem.onclick = () => {
+                    // Remove the 'active' class from all list items
+                    const items = fileList.querySelectorAll('.list-group-item');
+                    items.forEach(item => item.classList.remove('active'));
+                    // Add the 'active' class to the clicked item
+                    listItem.classList.add('active');
+                    loadDiagramFromServer(file);
+                    document.getElementById('diagramNameInput').value = file;
+                };
+                fileList.appendChild(listItem);
+            });
+        })
+        .catch(error => console.error('Error fetching JSON files:', error));
+}
+
+// Function to sharepoint files select
+function sharepointFilesSelectPopulate() {
+    fetch('/chatapp/get_sharepoint_files/')
+    .then(response => response.json())
+    .then(data => {
+        const fileSelect = document.getElementById('agentFile');
+        const currentValue = fileSelect.value; // Store current selected value
+        fileSelect.innerHTML = '<option value="">Select a file...</option>'; // Clear existing options
+        data.files.forEach(file => {
+            const option = document.createElement('option');
+            option.value = file.path;
+            option.textContent = `${file.analyse} / ${file.name}`;
+            fileSelect.appendChild(option);
+        });
+        // Reapply the selection if it exists
+        if (currentValue) {
+            fileSelect.value = currentValue;
+        }
+    })
+    .catch(error => console.error('Error loading files:', error));
+}
+
 // Attach event listener to modal show event
 const jsonFilesModal = document.getElementById('jsonFilesModal');
 if (jsonFilesModal) {
-    jsonFilesModal.addEventListener('show.bs.modal', fetchAndDisplayJsonFiles);
+    jsonFilesModal.addEventListener('show.bs.modal', diagramFilesPopulate);
 }
 
 // Event listener for save button
@@ -822,7 +865,7 @@ function deleteCurrentDiagram() {
     .then(data => {
         if (data.success) {
             alert('Diagram deleted successfully!');
-            fetchAndDisplayJsonFiles(); // Refresh the list
+            diagramFilesPopulate(); // Refresh the list
             clearCurrentDiagram(); // Clear the diagram from the canvas
         } else {
             alert('Error deleting diagram: ' + data.error);
@@ -838,7 +881,7 @@ if (deleteButton) {
 }
 
 // Handle form submission for agents
-document.getElementById("agentForm").addEventListener("submit", function(e) {
+agentForm.addEventListener("submit", function(e) {
     e.preventDefault();
     
     const role = document.getElementById("agentRole").value;
@@ -880,7 +923,8 @@ document.getElementById("agentForm").addEventListener("submit", function(e) {
     updateAgentDropdowns();
 
     // Reset form
-    resetAgentForm();
+    // resetAgentForm();
+    // xuxa to delete
 });
 
 // Handle cancel button click
@@ -900,25 +944,7 @@ document.getElementById("agentDeleteBtn").addEventListener("click", function(e) 
     }
 });
 
-// Handle form submission for relationships
-const taskForm = document.getElementById("relationshipForm");
-const fromInput = document.getElementById("fromAgent");
-const toInput = document.getElementById("toAgent");
 
-// Update canvas when from/to attributes change
-fromInput.addEventListener("change", updateCanvas);
-toInput.addEventListener("change", updateCanvas);
-
-function updateCanvas() {
-    const fromValue = fromInput.value;
-    const toValue = toInput.value;
-    // Logic to update the diagram based on new from/to values
-    const linkData = myDiagram.model.linkDataArray.find(link => link.from === fromValue && link.to === toValue);
-    if (linkData) {
-        myDiagram.model.updateTargetBindings(linkData);
-    }
-    myDiagram.layoutDiagram(true);
-}
 
 taskForm.addEventListener("submit", function(e) {
     e.preventDefault();
@@ -979,23 +1005,50 @@ document.getElementById("relationshipDeleteBtn").addEventListener("click", funct
     }
 });
 
+// Function to delete markdown file
+function deleteMarkdownFile(filename) {
+    fetch('/chatapp/designer/delete-markdown-file/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify({ filename: filename })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            explorerPopulate()
+            //alert('File deleted successfully.');
+            $('#crewaiModal').modal('hide');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while deleting the file.');
+    });
+}
+
 // Initialize diagram when page loads
 window.onload = function() {
     init();
-    fetchAndDisplayJsonFiles();
+    diagramFilesPopulate();
     explorerPopulate() 
-    
+    sharepointFilesSelectPopulate()
+
     // Add save button handler
     document.getElementById('saveButton').addEventListener('click', function(e) {
         e.preventDefault();
-        saveDiagram();
+        saveDiagramToDisk();
     });
     
     // Add load button handler
     document.getElementById('loadButton').addEventListener('change', function(e) {
         if (this.files && this.files[0]) {
             if (confirm('Loading a new diagram will replace the current one. Are you sure you want to continue?')) {
-                loadDiagram(this.files[0]);
+                loadDiagramFromDisk(this.files[0]);
             }
             this.value = ''; // Reset file input
         }
@@ -1011,28 +1064,7 @@ window.onload = function() {
             return;
         }
 
-        fetch('/chatapp/designer/delete-markdown-file/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken()
-            },
-            body: JSON.stringify({ filename: filename })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                explorerPopulate()
-                //alert('File deleted successfully.');
-                $('#crewaiModal').modal('hide');
-            } else {
-                alert('Error: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while deleting the file.');
-        });
+        deleteMarkdownFile(filename)
     });
 };
 
