@@ -1040,6 +1040,7 @@ def crewai_launch_process(request, folder, llm="openai"):
                     description=link['description'],
                     agent=from_agent,
                     expected_output=link.get('expected_output', ''),
+                    tools=from_agent.tools,
                 )
                 tasks.append(task)
         
