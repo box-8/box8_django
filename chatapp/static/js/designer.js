@@ -725,12 +725,12 @@ function explorerPopulate() {
             data.files.forEach(file => {
                 const listItem = document.createElement('li');
                 listItem.className = 'list-group-item';
+                listItem.style.cursor = 'pointer';
                 // Remove .json.md extension from the file name
                 const fileName = file.replace(/\.json\.md$/, '');
                 listItem.textContent = fileName;
                 listItem.linkFile = file;
                 listItem.onclick = () => {
-                    // alert(listItem.linkFile)
                     // Remove the 'active' class from all list items
                     const items = explorerList.querySelectorAll('.list-group-item');
                     items.forEach(item => item.classList.remove('active'));
@@ -772,16 +772,30 @@ function diagramFilesPopulate() {
             files.forEach(file => {
                 const listItem = document.createElement('li');
                 listItem.className = 'list-group-item';
+                listItem.style.cursor = 'pointer';
                 // Remove .json.md extension from the file name
                 const fileName = file.replace(/\.json\.md$/, '');
                 listItem.textContent = fileName;
+                listItem.ondblclick = () => { 
+                    // Remove the 'active' class from all list items
+                    const items = fileList.querySelectorAll('.list-group-item');
+                    items.forEach(item => item.classList.remove('active'));
+                    // Add the 'active' class to the clicked item
+                    listItem.classList.add('active');
+                    const jsonFilesModalElement = document.getElementById('jsonFilesModal');
+                    const jsonFilesModal = bootstrap.Modal.getInstance(jsonFilesModalElement) || new bootstrap.Modal(jsonFilesModalElement);
+                    jsonFilesModal.hide();
+                    loadDiagramFromServer(file);
+                    document.getElementById('diagramNameInput').value = file;
+                    
+                };
                 listItem.onclick = () => {
                     // Remove the 'active' class from all list items
                     const items = fileList.querySelectorAll('.list-group-item');
                     items.forEach(item => item.classList.remove('active'));
                     // Add the 'active' class to the clicked item
                     listItem.classList.add('active');
-                    loadDiagramFromServer(file);
+
                     document.getElementById('diagramNameInput').value = file;
                 };
                 fileList.appendChild(listItem);
