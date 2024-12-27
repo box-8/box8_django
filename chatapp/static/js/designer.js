@@ -44,6 +44,7 @@ fromInput.addEventListener("focus", () => {
 // Add swap relationship button handler
 const swapRelationBtn = document.getElementById('swapRelationBtn');
 swapRelationBtn.addEventListener('click', function() {
+    focusFromTo()
     const fromValue = fromInput.value;   
     const toValue = toInput.value;
     // Swap values
@@ -57,8 +58,6 @@ function relationUpdateFromTo() {
     const fromValue = fromInput.value;
     const toValue = toInput.value;
     // Logic to update the diagram based on new from/to values
-    
-    console.log(linkDataCurrent)   
     linkDataCurrent.from = fromValue;
     linkDataCurrent.to = toValue;
     if (linkDataCurrent) {
@@ -67,9 +66,7 @@ function relationUpdateFromTo() {
     
     linkDataCurrent = myDiagram.model.linkDataArray.find(link => link.from === fromValue && link.to === toValue);
     
-    console.log(linkDataCurrent)
-    myDiagram.layoutDiagram(true);
-    // loadDiagramData(dd);
+    // console.log(linkDataCurrent)
     redrawDiagram(false,false)
     
     
