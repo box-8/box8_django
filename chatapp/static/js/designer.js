@@ -20,18 +20,59 @@ const fromInput = document.getElementById("fromAgent");
 const toInput = document.getElementById("toAgent");
 
 // Update canvas when from/to attributes change
-fromInput.addEventListener("change", updateCanvas);
-toInput.addEventListener("change", updateCanvas);
+fromInput.addEventListener("change", relationUpdateFromTo);
+toInput.addEventListener("change", relationUpdateFromTo);
 
-function updateCanvas() {
+
+let linkDataCurrent = null;
+let toInputpreviousValue = toInput.value
+let fromInputpreviousValue = fromInput.value;
+function focusFromTo(){
+    toInputpreviousValue = toInput.value;
+    fromInputpreviousValue = fromInput.value;
+    linkDataCurrent = myDiagram.model.linkDataArray.find(link => link.from === fromInputpreviousValue && link.to === toInputpreviousValue);
+    
+    return linkDataCurrent
+}
+toInput.addEventListener("focus", () => {
+    focusFromTo()
+});
+fromInput.addEventListener("focus", () => {
+    focusFromTo()
+});
+
+// Add swap relationship button handler
+const swapRelationBtn = document.getElementById('swapRelationBtn');
+swapRelationBtn.addEventListener('click', function() {
+    const fromValue = fromInput.value;   
+    const toValue = toInput.value;
+    // Swap values
+    fromInput.value = toValue;
+    toInput.value = fromValue;
+    relationUpdateFromTo()
+});
+
+
+function relationUpdateFromTo() {
     const fromValue = fromInput.value;
     const toValue = toInput.value;
     // Logic to update the diagram based on new from/to values
-    const linkData = myDiagram.model.linkDataArray.find(link => link.from === fromValue && link.to === toValue);
-    if (linkData) {
-        myDiagram.model.updateTargetBindings(linkData);
+    
+    console.log(linkDataCurrent)   
+    linkDataCurrent.from = fromValue;
+    linkDataCurrent.to = toValue;
+    if (linkDataCurrent) {
+        myDiagram.model.updateTargetBindings(linkDataCurrent);
     }
+    
+    linkDataCurrent = myDiagram.model.linkDataArray.find(link => link.from === fromValue && link.to === toValue);
+    
+    console.log(linkDataCurrent)
     myDiagram.layoutDiagram(true);
+    // loadDiagramData(dd);
+    redrawDiagram(false,false)
+    
+    
 }
 
 
@@ -599,7 +640,7 @@ function ensureAllAgentsVisible() {
 }
 
 // Function to load diagram data
-function loadDiagramData(diagramData) {
+function loadDiagramData(diagramData, dropdown=true, refresh=true) {
     // Clear existing diagram
     myDiagram.model.nodeDataArray = [];
     myDiagram.model.linkDataArray = [];
@@ -617,9 +658,28 @@ function loadDiagramData(diagramData) {
     });
 
     // Update UI
-    updateAgentDropdowns();
-    myDiagram.layoutDiagram(true);
-    ensureAllAgentsVisible();
+    if (dropdown){updateAgentDropdowns();}
+    
+    if(refresh){
+        myDiagram.layoutDiagram(true)
+        ensureAllAgentsVisible();
+    };
+    
+}
+
+
+
+function DiagramData(){
+    const diagramData = {
+        nodes: myDiagram.model.nodeDataArray,
+        links: myDiagram.model.linkDataArray
+    };
+    return diagramData
+}
+
+
+function redrawDiagram(dropdown=true, refresh=true) {
+    loadDiagramData(DiagramData(),dropdown,refresh);
 }
 
 // Function to load diagram from JSON loadJsonFile
@@ -647,17 +707,15 @@ function loadDiagramFromServer(fileName) {
         .catch(error => console.error('Error loading JSON file:', error));
 }
 
+
 // Function to save the current diagram to the server
-function saveCurrentDiagram() {
+function saveDiagramToServer() {
     const diagramName = document.getElementById('diagramNameInput').value.trim();
     if (!diagramName) {
         alert('Please enter a name for the diagram.');
         return;
     }
-    const diagramData = {
-        nodes: myDiagram.model.nodeDataArray,
-        links: myDiagram.model.linkDataArray
-    };
+    const diagramData = DiagramData();
     fetch('/chatapp/designer/save-diagram/', {
         method: 'POST',
         headers: {
@@ -680,27 +738,17 @@ function saveCurrentDiagram() {
     })
     .catch(error => console.error('Error saving diagram:', error));
 }
-
-
-function DiagramData(){
-    const diagramData = {
-        nodes: myDiagram.model.nodeDataArray,
-        links: myDiagram.model.linkDataArray
-    };
-    return diagramData
+// Event listener for save button
+const saveDiagramToServerBtn = document.getElementById('saveCurrentDiagram');
+if (saveDiagramToServerBtn) {
+    saveDiagramToServerBtn.addEventListener('click', saveDiagramToServer);
 }
 
 
-function redrawDiagram(){
-    loadDiagramData(DiagramData());
-}
 
 // Function to save diagram as JSON
 function saveDiagramToDisk() {
-    const diagramData = {
-        nodes: myDiagram.model.nodeDataArray,
-        links: myDiagram.model.linkDataArray
-    };
+    const diagramData = DiagramData();
     
     const jsonString = JSON.stringify(diagramData, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
@@ -714,6 +762,15 @@ function saveDiagramToDisk() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 }
+
+const saveDiagramToDiskBtn = document.getElementById('saveButton');
+if (saveDiagramToDiskBtn) { 
+    saveDiagramToDiskBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        saveDiagramToDisk();
+    });
+}
+
 
 // Function to populate the explorer with markdown files
 function explorerPopulate() {
@@ -832,11 +889,6 @@ if (jsonFilesModal) {
     jsonFilesModal.addEventListener('show.bs.modal', diagramFilesPopulate);
 }
 
-// Event listener for save button
-const saveButton = document.getElementById('saveCurrentDiagram');
-if (saveButton) {
-    saveButton.addEventListener('click', saveCurrentDiagram);
-}
 
 // Function to clear and reset the diagram
 function clearCurrentDiagram() {
@@ -1053,10 +1105,7 @@ window.onload = function() {
     sharepointFilesSelectPopulate()
 
     // Add save button handler
-    document.getElementById('saveButton').addEventListener('click', function(e) {
-        e.preventDefault();
-        saveDiagramToDisk();
-    });
+    
     
     // Add load button handler
     document.getElementById('loadButton').addEventListener('change', function(e) {

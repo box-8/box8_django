@@ -247,20 +247,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ensureAllAgentsVisible();
     });
 
-    // Add swap relationship button handler
-    document.getElementById('swapRelationBtn').addEventListener('click', function() {
-        const fromSelect = document.getElementById('fromAgent');
-        const toSelect = document.getElementById('toAgent');
-        
-        // Store current values
-        const fromValue = fromSelect.value;
-        const toValue = toSelect.value;
-        
-        // Swap values
-        fromSelect.value = toValue;
-        toSelect.value = fromValue;
-        
-    });
+    
 
     // Add create CrewAI button handler
     document.getElementById('createCrewAIBtn').addEventListener('click', function() {
