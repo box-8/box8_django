@@ -67,11 +67,20 @@ function relationUpdateFromTo() {
     linkDataCurrent = myDiagram.model.linkDataArray.find(link => link.from === fromValue && link.to === toValue);
     
     // console.log(linkDataCurrent)
-    redrawDiagram(false,false)
-    
-    
+    redrawRelationships()    
 }
 
+
+function redrawRelationships() {
+    // Clear existing relationships
+    diagramData = DiagramData()
+    myDiagram.model.linkDataArray = [];
+
+    // Then load relationships
+    diagramData.links.forEach(link => {
+        myDiagram.model.addLinkData(link);
+    });
+}
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Control') {
