@@ -9,7 +9,7 @@ from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_POST
 
 from lorem_text import lorem
-from box8.ChatAgent import (crewai_launch_process, 
+from box8.ChatAgent import (crewai_launch_process,
                             chat, 
                             chat_enhance,
                             chat_summarize, 
