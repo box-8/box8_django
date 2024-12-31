@@ -1135,6 +1135,95 @@ window.onload = function() {
 
         deleteMarkdownFile(filename)
     });
+
+
+
+    // Add event listener for agentModalBtn
+    document.getElementById('agentModalBtn').addEventListener('click', function() {
+        var agentModal = new bootstrap.Modal(document.getElementById('agentModal'));
+        agentModal.show();
+        resetAgentForm();
+    });
+
+    // Add event listener for taskModalBtn
+    document.getElementById('taskModalBtn').addEventListener('click', function() {
+        var taskModal = new bootstrap.Modal(document.getElementById('taskModal'));
+        taskModal.show();
+        resetRelationshipForm();
+    });
+
+    // Add event listener for agentModal
+    document.getElementById('agentModal').addEventListener('show.bs.modal', function() {
+        sharepointFilesSelectPopulate();
+    });
+
+    // Add refresh layout button handler
+    document.getElementById('refreshLayoutBtn').addEventListener('click', function() {
+        redrawDiagram()
+        myDiagram.layoutDiagram(true);
+        ensureAllAgentsVisible();
+    });
+
+
+    // Add create CrewAI button handler
+    document.getElementById('createCrewAIBtn').addEventListener('click', function() {
+        // Get the diagram data
+        const diagramData = {
+            nodes: myDiagram.model.nodeDataArray,
+            links: myDiagram.model.linkDataArray
+        };
+
+        // Add diagramNameInput to the diagram data
+        const diagramNameInput = document.getElementById('diagramNameInput').value;
+        diagramData.diagramNameInput = diagramNameInput;
+
+        // Send to backend
+        fetch('/chatapp/designer/launch_crewai/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify(diagramData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Display result in modal
+            const resultDiv = document.getElementById('crewaiResult');
+            if (data.status === 'success') {
+                // Convert markdown message to HTML
+                const messageHtml = marked.parse(data.message);
+                
+                resultDiv.innerHTML = `<div class="text-success mb-3">Process completed successfully!</div>
+                                     <div class="markdown-body">${messageHtml}</div>
+                                     <div class="mt-3">
+                                         <strong>Agents:</strong> ${data.agents_count}<br>
+                                         <strong>Tasks:</strong> ${data.tasks_count}
+                                     </div>`;
+            } else {
+                resultDiv.innerHTML = `<div class="text-danger mb-3">Error occurred during process</div>
+                                     <div>${data.message}</div>`;
+            }
+
+            // Show the modal
+            const modal = new bootstrap.Modal(document.getElementById('crewaiModal'));
+            explorerPopulate()
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            const resultDiv = document.getElementById('crewaiResult');
+            resultDiv.innerHTML = `<div class="text-danger mb-3">Error occurred during process</div>
+                                 <div>Error creating CrewAI process: ${error.message}</div>`;
+            const modal = new bootstrap.Modal(document.getElementById('crewaiModal'));
+            modal.show();
+        });
+    });
+
+    
+
+    
+
 };
 
 // Helper function to get CSRF token
