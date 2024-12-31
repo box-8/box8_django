@@ -3,258 +3,17 @@ import os
 import tempfile
 import PyPDF2
 from crewai import Agent, Crew, Process, Task, LLM
-from crewai_tools import (PDFSearchTool,
-                          DOCXSearchTool,
-                          TXTSearchTool,
-                          CSVSearchTool,
-                          WebsiteSearchTool,
-                          ScrapeWebsiteTool)
-from docx import Document
+
+
 from lorem_text import lorem
-
-
-
-def ChooseLLM(name=""):
-    
-    if name == "" : 
-        name = "openai"
-
-    if name=="local":
-        # selected_llm = ChatOpenAI(model="mistral-7b-local", base_url="http://localhost:1552/v1")
-        
-        selected_llm = LLM(
-            model="ollama/mistral",
-            base_url="http://localhost:11434"
-        )
-
-    elif name=="mistral":
-        # API_KEY = os.getenv("MISTRAL_API_KEY")
-        # selected_llm = ChatGroq(temperature=0, groq_api_key=API_KEY, model_name="groq/mixtral-8x7b-32768")
-        selected_llm = LLM(
-            model="mistral/mistral-medium-latest",
-            temperature=0.2
-        )
-        
-    elif name=="groq":
-        # API_KEY = os.getenv("GROQ_API_KEY")
-        # selected_llm = ChatGroq(temperature=0, groq_api_key=API_KEY, model_name="groq/mixtral-8x7b-32768")
-        selected_llm = LLM(
-            model="groq/mixtral-8x7b-32768",
-            temperature=0.2
-        )
-    
-    elif name=="groq-llama":
-        # API_KEY = os.getenv("GROQ_API_KEY")
-        # selected_llm = ChatGroq(temperature=0, groq_api_key=API_KEY, model_name="groq/llama-3.1-70b-versatile")
-        selected_llm = LLM(
-            model="groq/llama-3.1-70b-versatile",
-            temperature=0.2
-        )
-    elif name=="groq-llama3":
-        # API_KEY = os.getenv("GROQ_API_KEY")
-        # selected_llm = ChatGroq(temperature=0, groq_api_key=API_KEY, model_name="groq/llama-3.1-70b-versatile")
-        selected_llm = LLM(
-            model="groq/llama3-8b-8192",
-            temperature=0.2
-        )
-    elif name=="openai":
-        selected_llm = LLM(
-            model="gpt-4",
-            temperature=0.2
-        )
-        
-    elif name=="claude":
-        selected_llm = LLM(
-            model="claude-3-5-sonnet-20240620",
-            temperature=0.2
-        )
-
-    else:
-        selected_llm = LLM(
-            model="gpt-3.5-turbo",
-            temperature=0.2
-        )
-    return selected_llm
-
-
-
-
-def choose_tool(src):
-    """Choisit le bon outil en fonction de l'extension du fichier."""
-    _, extension = os.path.splitext(src)
-    extension = extension.lower()
-
-    if src.startswith('http'):
-        print("[INFO] Outil sélectionné : ScrapeWebsiteTool")
-        return ScrapeWebsiteTool(website_url=src)
-    elif src.endswith('.chat'):
-        print("[INFO] Outil sélectionné : Pas de fichier")
-        return None
-    
-    if extension == '.pdf':
-        print("[INFO] Outil sélectionné : PDFSearchTool")
-        return PDFSearchTool(pdf=src)
-    elif extension == '.txt':
-        print("[INFO] Outil sélectionné : TXTSearchTool")
-        return TXTSearchTool(txt=src)
-    elif extension == '.csv':
-        print("[INFO] Outil sélectionné : CSVSearchTool")
-        return CSVSearchTool(csv=src)
-    elif extension == '.docx':
-        print("[INFO] Outil sélectionné : DOCXSearchTool")
-        return DOCXSearchTool(docx=src)
-    else:
-        return WebsiteSearchTool(website=src)
-    
-
-
-def extract_pages(src):
-    texte_pages = []
-
-    try:
-        extension = os.path.splitext(src)[1].lower()
-
-        # Extraction pour les fichiers PDF
-        if extension == '.pdf':
-            with open(src, 'rb') as pdf_file:
-                reader = PyPDF2.PdfReader(pdf_file)
-
-                for page_num, page in enumerate(reader.pages):
-                    try:
-                        texte = page.extract_text()
-                        if texte:
-                            texte_pages.append(texte)
-                        else:
-                            print(f"Le texte de la page {page_num + 1} est vide ou illisible.")
-                    except Exception as e:
-                        print(f"Erreur lors de l'extraction du texte de la page {page_num + 1}: {e}")
-
-        # Extraction pour les fichiers DOCX
-        elif extension == '.docx':
-            try:
-                doc = Document(src)
-                paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
-
-                # Grouper les paragraphes par blocs de 11
-                bloc = []
-                for i, paragraphe in enumerate(paragraphs, start=1):
-                    bloc.append(paragraphe)
-                    if i % 11 == 0:
-                        texte_pages.append("\n".join(bloc))
-                        bloc = []
-
-                # Ajouter les paragraphes restants si le dernier bloc a moins de 11 paragraphes
-                if bloc:
-                    texte_pages.append("\n".join(bloc))
-
-            except Exception as e:
-                print(f"Erreur lors de l'extraction du texte du fichier DOCX : {e}")
-
-        else:
-            print("Format de fichier non pris en charge. Seuls les fichiers PDF et DOCX sont acceptés.")
-
-    except FileNotFoundError:
-        print(f"Le fichier {src} est introuvable.")
-    except Exception as e:
-        print(f"Une erreur s'est produite : {e}")
-    
-    return texte_pages
-
-
-
-
+from box8.CrewAIFunctions import (choose_tool,ChooseLLM)
+from box8.utils_pdf import (extractPageTextFromFile)
+from box8.ChatDiagram import (crewai_summarize, crewai_summarize_ifnotexists)
 
 
 def chat_summarize (pdf, pages=6 , history=None, llm="openai"):
-    """
-    Extrait des insights à partir d'un document PDF en utilisant CrewAI.
-
-    Paramètres :
-    - pdf (str) : Le chemin vers le fichier PDF à analyser.
-    - pages (str) : nombre de pages.
-    - history (list, optionnel) : Un historique des interactions précédentes (par défaut, None).
-    - llm (str) : Le modèle de langage à utiliser (par défaut, "openai").
-
-    Retourne :
-    - list : Une liste d'insights sous forme de tableau JSON.
-    """
-    firstpages = extract_pages(src=pdf)
-    # Prendre uniquement les 6 premières pages
-    try:
-        entier = int(pages)
-    except ValueError:
-        print("La chaîne ne peut pas être convertie en entier")
-        entier = 6
-        
-    content = "\n".join(firstpages[:entier])
-
-    # Définition des agents
-    title_extractor = Agent(
-        name="Title Extractor",
-        role="Expert en identification de titres",
-        goal="Identifier le titre du document",
-        backstory=f"""
-            Un spécialiste dans l'identification rapide de titres et de sujets principaux 
-            à partir d'extraits de documents textuels."""
-    )
-
-    author_audience_extractor = Agent(
-        name="Author and Audience Extractor",
-        role="Expert en analyse d'auteur et de public cible",
-        goal="Identifier qui a écrit le document et à qui il est adressé",
-        backstory="""
-            Un analyste expérimenté capable de déduire l'auteur et le public cible 
-            d'un texte en étudiant le style et le contenu."""
-    )
-
-    subject_purpose_extractor = Agent(
-        name="Subject and Purpose Extractor",
-        role="Expert en analyse de contenu",
-        goal="Déterminer le sujet du document et son but",
-        backstory="""
-            Un expert en compréhension et analyse de texte, capable de résumer 
-            les thèmes principaux et les objectifs sous-jacents d'un document."""
-    )
-
-    # Définition des tâches
-    title_task = Task(
-        name="Extraction du titre",
-        agent=title_extractor,
-        description=f"""
-            À partir du texte suivant, identifie le titre du document :
-            {content}""",
-        expected_output="Le titre du document."
-    )
-
-    author_audience_task = Task(
-        name="Identification de l'auteur et du public cible",
-        agent=author_audience_extractor,
-        description=f"""
-            En te basant sur le texte suivant, détermine qui a écrit le document 
-            et à quel public il s'adresse :
-            {content}""",
-        expected_output="L'auteur du document et le public cible."
-    )
-
-    subject_purpose_task = Task(
-        name="Analyse du sujet et du but",
-        agent=subject_purpose_extractor,
-        description=f"""
-            Analyse le texte suivant pour déterminer le sujet du document et son objectif :
-            {content}""",
-        expected_output="Le sujet et le but du document avec un titre des sous titres et structuré au format markdown."
-    )
-
-    # Création de l'équipe CrewAI
-    crew = Crew(
-        agents=[title_extractor, author_audience_extractor, subject_purpose_extractor],
-        tasks=[title_task, author_audience_task, subject_purpose_task]
-    )
-
-    # Exécution des tâches par les agents
-    result = crew.kickoff()
-    summary = result.raw
-    print(summary)
+    summary = crewai_summarize(pdf, pages, history, llm)
+    # print(summary)
     # Retourner le résultat final
     # Enregistrer le résumé dans un fichier texte
     # Chemin du fichier de résumé
@@ -270,29 +29,13 @@ def chat_summarize (pdf, pages=6 , history=None, llm="openai"):
 
 
 
-def chat_summarize_ifnotexists(pdf, pages=6 , history=None, llm="openai"):
-    
-    txt_path = pdf + ".txt"
-    if os.path.exists(txt_path):
-        try:
-            with open(txt_path, "r", encoding="utf-8") as file:
-                content = file.read()  # Lire tout le contenu du fichier
-            print(f"Contenu du fichier :\n{content}")
-        except Exception as e:
-            print(f"Erreur lors de la lecture du fichier : {e}")
-    else:
-        print(f"Le fichier {pdf} n'existe pas, on le génère.")
-        content = chat_summarize(pdf, pages=pages , history=history, llm=llm)
-    return content
-
-
 def extract_insights(pdf, pages=6 , history=None, llm="openai"):
     try:
         pages = int(pages)
     except ValueError:
         print("La chaîne ne peut pas être convertie en entier")
         pages = 6
-    summary = chat_summarize_ifnotexists(pdf=pdf, pages=pages , history=history, llm=llm)
+    summary = crewai_summarize_ifnotexists(pdf=pdf, pages=pages , history=history, llm=llm)
     insight_extractor = Agent(
         name="Insight Extractor",
         role="Analyste de contenu",
@@ -418,7 +161,7 @@ def chat_memorize_old(pdf, question , history=None, llm="openai"):
     # Chemin du fichier de résumé
     txt_path = pdf + ".txt"
     
-    texte_pages = extract_pages(pdf)
+    texte_pages = extractPageTextFromFile(pdf)
     
     # analyse json de chaque page
     history = []
@@ -985,10 +728,10 @@ def reorder_agents(json_data):
         "links": links
     }
     
-def crewai_launch_process(request, folder, llm="openai"):
+def crewai_launch_process_firstimplementation(request, folder, llm="openai"):
     try:
         print(llm)
-        reorder_agents
+
         data = json.loads(request.body)
         data = reorder_agents(data)
 

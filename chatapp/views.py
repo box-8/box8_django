@@ -9,13 +9,15 @@ from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_POST
 
 from lorem_text import lorem
-from box8.ChatAgent import (crewai_launch_process,
-                            chat, 
+from box8.ChatAgent import (chat, 
                             chat_enhance,
                             chat_summarize, 
                             extract_insights, 
                             delete_entry,
                             chat_save_conversation)
+
+from box8.CrewAIFunctions import resetChroma 
+from box8.ChatDiagram import (crewai_launch_process)
 from box8.utils_pdf import PdfUtils
 
 import markdown
@@ -364,18 +366,7 @@ def build_talk_response(message,state,json={}):
 #############################################################################
 
 def chroma_reset(request):
-    
-    import chromadb
-    from chromadb.config import Settings
-    path ="db/" 
-    if os.path.isdir(path):
-        client = chromadb.PersistentClient(path=path, settings=Settings(allow_reset=True))
-
-        client.reset()  # Réinitialise la base de données
-        state = True
-    else : 
-        state = False
-    print()
+    state = resetChroma() 
     return JsonResponse({'status': 'success', 'message': f'Chroma reset : {state}'})
 
 
@@ -722,7 +713,7 @@ def chatapp_summarize(request):
         response_data = build_talk_response("Attention, veuillez choisir le(s) documents avec lesquels vous souhaitez discuter","danger")
         return JsonResponse(response_data)
     
-    response = chat_summarize(pdf=pdf, pages = prompt, history = history, llm=llm)
+    response = chat_summarize(pdf=pdf, pages = prompt, llm=llm)
     response_data = build_talk_response(response,"warning")
     return JsonResponse(response_data)
 
