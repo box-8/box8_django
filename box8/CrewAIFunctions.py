@@ -36,7 +36,14 @@ def ChooseLLM(name=""):
             model="ollama/mistral",
             base_url="http://localhost:11434"
         )
-
+        
+    elif name=="hosted":
+        selected_llm = LLM(
+            model="hosted_vllm/cognitivecomputations/dolphin-2.9-llama3-8b",
+            base_url="https://3376i2qt2in9ep-8000.proxy.runpod.net/v1",
+            api_key="token-abc123",
+        )
+        
     elif name=="mistral":
         # API_KEY = os.getenv("MISTRAL_API_KEY")
         # selected_llm = ChatGroq(temperature=0, groq_api_key=API_KEY, model_name="groq/mixtral-8x7b-32768")
@@ -67,6 +74,8 @@ def ChooseLLM(name=""):
             model="groq/llama3-8b-8192",
             temperature=0.2
         )
+
+
     elif name=="openai":
         selected_llm = LLM(
             model="gpt-4",

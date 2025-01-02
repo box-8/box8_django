@@ -172,6 +172,14 @@ function init() {
                                 font: "bold 12px sans-serif",
                                 stroke: "#333"
                             },
+                            new go.Binding("text", "key")
+                        ),
+                        $(go.TextBlock,
+                            {
+                                margin: new go.Margin(0, 0, 4, 0),
+                                font: "bold 12px sans-serif",
+                                stroke: "#333"
+                            },
                             new go.Binding("text", "name")
                         ),
                         // Role
@@ -1222,7 +1230,30 @@ window.onload = function() {
 
     
 
+    document.getElementById('downloadMarkdownBtn').addEventListener('click', function() {
+        const diagramNameInput = document.getElementById('downloadMarkdownBtnTitle').innerText;
     
+        fetch(`/chatapp/designer/get_markdown_output/?diagramName=${encodeURIComponent(diagramNameInput)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.content) {
+                    const blob = new Blob([data.content], { type: 'text/markdown' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${diagramNameInput}.md`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } else {
+                    console.error('Error: File content not found');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching markdown:', error);
+            });
+    });
 
 };
 

@@ -195,11 +195,18 @@
             <h5>Choisir un LLM ({{ request.session.selected_llm }})</h5>
             <form id="llm-form">
                   <div class="form-check">
-                      <input class="form-check-input" type="radio" name="llm" id="openai" value="openai" {% if request.session.selected_llm == "openai" %}checked{% endif %}> 
-                      <label class="form-check-label" for="openai">
-                          OpenAI GPT-4
+                      <input class="form-check-input" type="radio" name="llm" id="hosted" value="hosted" {% if request.session.selected_llm == "hosted" %}checked{% endif %}> 
+                      <label class="form-check-label" for="hosted">
+                        hosted_vllm/cognitivecomputations/dolphin-2.9-llama3-8b
                       </label>
                   </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="llm" id="openai" value="openai" {% if request.session.selected_llm == "openai" %}checked{% endif %}> 
+                    <label class="form-check-label" for="openai">
+                        OpenAI GPT-4
+                    </label>
+                </div>
+                  
                   <div class="form-check">
                     <input class="form-check-input" type="radio" name="llm" id="other" value="other" {% if request.session.selected_llm == "other" %}checked{% endif %} >
                     <label class="form-check-label" for="other">

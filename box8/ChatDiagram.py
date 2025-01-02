@@ -4,6 +4,14 @@ from crewai import Agent, Crew, Process, Task, LLM
 from box8.CrewAIFunctions import (choose_tool, ChooseLLM,resetChroma)
 from box8.utils_pdf import (extractPageTextFromFile)
 
+
+
+RED = '\033[31m'
+GREEN = '\033[32m'
+MAGENTA = '\033[35m'
+END = '\033[0m'
+
+
 def crewai_summarize_ifnotexists(pdf, pages=6 , history=None, llm="openai"):
     
     txt_path = pdf + ".txt"
@@ -201,6 +209,8 @@ def execute_process_from_diagram(request, folder, llm="openai"):
 
                 try:
                     crew = Crew(agents=[from_agent], tasks=[task])
+                    print(f"{MAGENTA}KICKOFF FOR TASK DESCRIPTION{END} : \n{RED}{task.description}{END}")
+                    print(f"{MAGENTA}EXPECTED OUTPUT{END} : \n{RED}{task.expected_output}{END}")
                     kickoff = crew.kickoff()
 
                     result = f"\n\n***\n\n"
@@ -210,8 +220,10 @@ def execute_process_from_diagram(request, folder, llm="openai"):
                     to_agent.backstory += f"\n\nRésultat de {from_agent.role} : {task.output.raw}"
                     #result += f"\n\n<small><i>{from_agent.backstory}</i></small>\n\n"
                     all_results.append(result)
-                    print(result)
-                    print(f"{from_agent.backstory}")
+                    
+                    print(f"RESULT : \n\n{MAGENTA}{result}{END}")
+                    print(f"FROM BACKSTORY : \n\n{GREEN}{from_agent.backstory}{END}")
+                    print(f"TO BACKSTORY : \n\n{GREEN}{to_agent.backstory}{END}")
 
                 except Exception as e:
                     print(f"Erreur lors de l'exécution de la tâche : {str(e)}")
