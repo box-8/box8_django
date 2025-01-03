@@ -7,9 +7,11 @@ from django.http import FileResponse, HttpResponse, HttpResponseForbidden, JsonR
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.csrf import csrf_exempt
 
 from lorem_text import lorem
-from box8.ChatAgent import (chat, 
+from box8.ChatAgent import (
+                            chat, 
                             chat_enhance,
                             chat_summarize, 
                             extract_insights, 
@@ -782,6 +784,7 @@ def chatapp_get_sharepoint_files(request):
     return JsonResponse({'files': all_files})
 
 
+@csrf_exempt
 def designer_launch_crewai(request):
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -826,7 +829,7 @@ def designer_list_markdown_files(request):
 
 
 
-@login_required
+@csrf_exempt
 @require_GET
 def designer_list_json_files(request):
     directory_path = get_absolute_path('sharepoint/designer')
@@ -839,7 +842,7 @@ def designer_list_json_files(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
-@login_required
+@csrf_exempt
 @require_GET
 def designer_get_diagram(request, filename):
     directory_path = get_absolute_path('sharepoint/designer')

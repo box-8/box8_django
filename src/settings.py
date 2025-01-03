@@ -27,8 +27,7 @@ SECRET_KEY = 'pxz!5e7vki$4%fx2+xb-z6v_85b)0j)nwontigspp#!+fpxu*2'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 # Application definition
 
@@ -41,15 +40,16 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'bootstrap5',
+    'corsheaders',
     
     'authapp',
     'chatapp',
-    
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -138,8 +138,19 @@ LOGIN_REDIRECT_URL = 'authapp:dashboard'
 LOGIN_URL = 'authapp:login'
 LOGOUT_URL = 'authapp:logout'
 
+# CORS settings
+CORS_ALLOW_ALL_ORIGINS = True  # En développement seulement
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
+
+# CSRF settings
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+]
+
 # push
 
 EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
 EMAIL_FILE_PATH = str(BASE_DIR.joinpath('sent_emails'))
-
